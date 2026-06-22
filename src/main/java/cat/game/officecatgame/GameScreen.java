@@ -41,6 +41,13 @@ public class GameScreen extends StackPane {
     private final List<HideSpot> hideSpots = new ArrayList<>();
     private final List<ChaosEvent> chaosEvents = new ArrayList<>();
     private final List<FloatingText> floatingTexts = new ArrayList<>();
+    private final List<ChaosObjective> objectiveDeck = List.of(
+            new ChaosObjective("keyboard", "Keyboard Tyrant", "Nap on the developer keyboard", 8),
+            new ChaosObjective("mug", "Coffee Disaster", "Knock the kitchen mug to the floor", 7),
+            new ChaosObjective("wifi", "Offline Office", "Disable the office Wi-Fi", 10),
+            new ChaosObjective("meeting", "Meeting Menace", "Interrupt the online call with a meow", 8),
+            new ChaosObjective("papers", "Executive Mess", "Scatter the director's paperwork", 9)
+    );
     private final List<EmployeeNpc> employees = new ArrayList<>();
     private final List<Point> managerPatrolPath = List.of(
             new Point(760, 130),
@@ -60,6 +67,8 @@ public class GameScreen extends StackPane {
     private double managerPenaltyCooldown;
     private double comboTimer;
     private int comboCount;
+    private int objectiveIndex;
+    private ChaosObjective currentObjective;
     private boolean interactionHeld;
     private HideSpot activeHideSpot;
     private boolean startHeld;
@@ -175,6 +184,8 @@ public class GameScreen extends StackPane {
         managerPenaltyCooldown = 0;
         comboTimer = 0;
         comboCount = 0;
+        objectiveIndex = 0;
+        currentObjective = nextObjective();
         interactionHeld = false;
         endMessage = "";
         player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
@@ -231,10 +242,49 @@ public class GameScreen extends StackPane {
                                 1.4
                         ));
                     }
+                    checkObjectiveCompletion(nearest);
                 }
             }
         }
         interactionHeld = pressed;
+    }
+
+    private ChaosObjective nextObjective() {
+        if (objectiveDeck.isEmpty()) {
+            return null;
+        }
+        ChaosObjective template = objectiveDeck.get(objectiveIndex % objectiveDeck.size());
+        objectiveIndex++;
+        return new ChaosObjective(
+                template.interactionId(),
+                template.title(),
+                template.description(),
+                template.bonusChaos()
+        );
+    }
+
+    private void checkObjectiveCompletion(ChaosInteraction interaction) {
+        if (currentObjective == null || currentObjective.completed() || !currentObjective.matches(interaction)) {
+            return;
+        }
+
+        currentObjective.complete();
+        chaosPercent = Math.min(100, chaosPercent + currentObjective.bonusChaos());
+        floatingTexts.add(new FloatingText(
+                currentObjective.title() + " complete!",
+                interaction.x(),
+                interaction.y() - 62,
+                Color.web("#34d399"),
+                1.8
+        ));
+        floatingTexts.add(new FloatingText(
+                String.format("Objective bonus +%.0f", currentObjective.bonusChaos()),
+                interaction.x(),
+                interaction.y() - 82,
+                Color.web("#a7f3d0"),
+                1.8
+        ));
+        currentObjective = nextObjective();
     }
 
     private double applyCombo(ChaosInteraction interaction) {
@@ -534,6 +584,17 @@ public class GameScreen extends StackPane {
         gc.fillText("Manager: " + manager.statusText(), 812, 104);
         gc.fillText(String.format("Pressure: %.0f%%", currentChaosPressure() * 50), 812, 132);
         gc.fillText("State: " + gameState.name(), 1060, 132);
+
+        gc.setFill(Color.rgb(17, 24, 39, 0.9));
+        gc.fillRoundRect(24, 160, 1216, 72, 20, 20);
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 16));
+        gc.fillText("Current Objective", 42, 188);
+        gc.setFont(Font.font("Verdana", 15));
+        if (currentObjective != null) {
+            gc.fillText(currentObjective.title() + ": " + currentObjective.description(), 42, 214);
+            gc.fillText(String.format("Reward: +%.0f bonus chaos", currentObjective.bonusChaos()), 960, 214);
+        }
     }
 
     private void drawPrompt(GraphicsContext gc, ChaosInteraction interaction) {
@@ -611,6 +672,7 @@ public class GameScreen extends StackPane {
         gc.setFont(Font.font("Verdana", 18));
         gc.fillText("Reach 100% chaos before the work day ends.", WIDTH / 2.0, 338);
         gc.fillText("Avoid the manager, trigger distractions, and hide in boxes.", WIDTH / 2.0, 370);
+        gc.fillText("Follow daily cat objectives for bonus chaos.", WIDTH / 2.0, 402);
         gc.fillText("[Enter] Start run", WIDTH / 2.0, 430);
         gc.fillText("[WASD / Arrows] Move    [E] Interact    [Esc / P] Pause", WIDTH / 2.0, 468);
         gc.setTextAlign(TextAlignment.LEFT);
@@ -661,6 +723,7 @@ public class GameScreen extends StackPane {
         hideSpots.add(new HideSpot(1180, 520, 68, "director archive box"));
 
         interactions.add(new ChaosInteraction(
+                "keyboard",
                 360, 157,
                 "Nap on a developer keyboard",
                 "keyboard chaos",
@@ -672,6 +735,7 @@ public class GameScreen extends StackPane {
                 Color.web("#60a5fa")
         ));
         interactions.add(new ChaosInteraction(
+                "mug",
                 1040, 165,
                 "Push a coffee mug off the kitchen counter",
                 "spilled coffee",
@@ -683,6 +747,7 @@ public class GameScreen extends StackPane {
                 Color.web("#f59e0b")
         ));
         interactions.add(new ChaosInteraction(
+                "wifi",
                 1010, 430,
                 "Disable the office Wi-Fi router",
                 "Wi-Fi outage",
@@ -694,6 +759,7 @@ public class GameScreen extends StackPane {
                 Color.web("#ef4444")
         ));
         interactions.add(new ChaosInteraction(
+                "meeting",
                 730, 165,
                 "Meow during the online meeting",
                 "meeting disruption",
@@ -705,6 +771,7 @@ public class GameScreen extends StackPane {
                 Color.web("#8b5cf6")
         ));
         interactions.add(new ChaosInteraction(
+                "papers",
                 1110, 430,
                 "Scatter the director's paperwork",
                 "paper catastrophe",

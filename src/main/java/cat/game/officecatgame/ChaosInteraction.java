@@ -3,6 +3,7 @@ package cat.game.officecatgame;
 import javafx.scene.paint.Color;
 
 public class ChaosInteraction {
+    private final String id;
     private final double x;
     private final double y;
     private final String promptText;
@@ -17,6 +18,7 @@ public class ChaosInteraction {
     private long availableAtMillis;
 
     public ChaosInteraction(
+            String id,
             double x,
             double y,
             String promptText,
@@ -28,6 +30,7 @@ public class ChaosInteraction {
             double eventSeverity,
             Color color
     ) {
+        this.id = id;
         this.x = x;
         this.y = y;
         this.promptText = promptText;
@@ -58,6 +61,10 @@ public class ChaosInteraction {
 
     public double x() {
         return x;
+    }
+
+    public String id() {
+        return id;
     }
 
     public double y() {
