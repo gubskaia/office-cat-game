@@ -6,9 +6,12 @@ public class ChaosInteraction {
     private final double x;
     private final double y;
     private final String promptText;
+    private final String eventLabel;
     private final double chaosGain;
     private final double cooldownSeconds;
     private final double promptRadius;
+    private final double eventRadius;
+    private final double eventSeverity;
     private final Color color;
 
     private long availableAtMillis;
@@ -17,17 +20,23 @@ public class ChaosInteraction {
             double x,
             double y,
             String promptText,
+            String eventLabel,
             double chaosGain,
             double cooldownSeconds,
             double promptRadius,
+            double eventRadius,
+            double eventSeverity,
             Color color
     ) {
         this.x = x;
         this.y = y;
         this.promptText = promptText;
+        this.eventLabel = eventLabel;
         this.chaosGain = chaosGain;
         this.cooldownSeconds = cooldownSeconds;
         this.promptRadius = promptRadius;
+        this.eventRadius = eventRadius;
+        this.eventSeverity = eventSeverity;
         this.color = color;
     }
 
@@ -55,6 +64,10 @@ public class ChaosInteraction {
         return promptText;
     }
 
+    public String eventLabel() {
+        return eventLabel;
+    }
+
     public double chaosGain() {
         return chaosGain;
     }
@@ -65,5 +78,13 @@ public class ChaosInteraction {
 
     public Color color() {
         return color;
+    }
+
+    public double eventRadius() {
+        return eventRadius;
+    }
+
+    public double eventSeverity() {
+        return eventSeverity;
     }
 }

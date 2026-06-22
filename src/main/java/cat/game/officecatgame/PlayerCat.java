@@ -108,4 +108,9 @@ public class PlayerCat {
     public double centerY() {
         return y + height / 2.0;
     }
+
+    public void setPosition(double nextX, double nextY) {
+        x = nextX;
+        y = nextY;
+    }
 }

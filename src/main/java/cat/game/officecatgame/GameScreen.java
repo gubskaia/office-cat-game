@@ -13,6 +13,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class GameScreen extends StackPane {
@@ -20,16 +21,32 @@ public class GameScreen extends StackPane {
     public static final int HEIGHT = 720;
 
     private static final double DAY_DURATION_SECONDS = 180.0;
+    private static final double EVENT_DURATION_SECONDS = 2.8;
+    private static final double MANAGER_PENALTY_COOLDOWN_SECONDS = 4.0;
+    private static final Point PLAYER_RESPAWN = new Point(90, 110);
 
     private final Canvas canvas = new Canvas(WIDTH, HEIGHT);
     private final InputState input = new InputState();
-    private final PlayerCat player = new PlayerCat(90, 110);
+    private final PlayerCat player = new PlayerCat(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
     private final List<Rect> walls = new ArrayList<>();
     private final List<ChaosInteraction> interactions = new ArrayList<>();
+    private final List<ChaosEvent> chaosEvents = new ArrayList<>();
+    private final List<EmployeeNpc> employees = new ArrayList<>();
+    private final ManagerNpc manager = new ManagerNpc(
+            780, 180,
+            List.of(
+                    new Point(760, 130),
+                    new Point(1120, 180),
+                    new Point(1090, 520),
+                    new Point(620, 510),
+                    new Point(260, 340)
+            )
+    );
 
     private AnimationTimer loop;
     private double chaosPercent;
     private double timeLeft = DAY_DURATION_SECONDS;
+    private double managerPenaltyCooldown;
     private boolean interactionHeld;
     private boolean gameFinished;
     private String endMessage = "";
@@ -69,8 +86,12 @@ public class GameScreen extends StackPane {
     private void update(double deltaSeconds) {
         if (!gameFinished) {
             timeLeft = Math.max(0, timeLeft - deltaSeconds);
+            managerPenaltyCooldown = Math.max(0, managerPenaltyCooldown - deltaSeconds);
             player.update(input, deltaSeconds, walls);
             handleInteractionAttempt();
+            updateChaosEvents(deltaSeconds);
+            updateNpcs(deltaSeconds);
+            handleManagerCatch();
 
             if (chaosPercent >= 100) {
                 gameFinished = true;
@@ -89,9 +110,50 @@ public class GameScreen extends StackPane {
             if (nearest != null && nearest.canTrigger()) {
                 nearest.trigger();
                 chaosPercent = Math.min(100, chaosPercent + nearest.chaosGain());
+                chaosEvents.add(new ChaosEvent(
+                        nearest.eventLabel(),
+                        nearest.x(),
+                        nearest.y(),
+                        nearest.eventRadius(),
+                        nearest.eventSeverity(),
+                        EVENT_DURATION_SECONDS
+                ));
             }
         }
         interactionHeld = pressed;
+    }
+
+    private void updateChaosEvents(double deltaSeconds) {
+        chaosEvents.forEach(event -> event.update(deltaSeconds));
+        chaosEvents.removeIf(event -> !event.isActive());
+    }
+
+    private void updateNpcs(double deltaSeconds) {
+        for (EmployeeNpc employee : employees) {
+            employee.update(deltaSeconds, player, strongestEventNear(employee.x(), employee.y(), 165));
+        }
+        manager.update(deltaSeconds, player, strongestEventNear(manager.x(), manager.y(), 260));
+    }
+
+    private ChaosEvent strongestEventNear(double x, double y, double maxDistance) {
+        return chaosEvents.stream()
+                .filter(ChaosEvent::isActive)
+                .filter(event -> Math.hypot(event.x() - x, event.y() - y) <= Math.min(event.radius(), maxDistance))
+                .max(Comparator.comparingDouble(ChaosEvent::severity))
+                .orElse(null);
+    }
+
+    private void handleManagerCatch() {
+        if (managerPenaltyCooldown > 0 || gameFinished) {
+            return;
+        }
+
+        if (manager.catches(player)) {
+            managerPenaltyCooldown = MANAGER_PENALTY_COOLDOWN_SECONDS;
+            chaosPercent = Math.max(0, chaosPercent - 10);
+            timeLeft = Math.max(0, timeLeft - 12);
+            player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
+        }
     }
 
     private ChaosInteraction getNearestInteraction() {
@@ -112,7 +174,9 @@ public class GameScreen extends StackPane {
     private void render() {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         drawOffice(gc);
+        drawChaosEvents(gc);
         drawInteractions(gc);
+        drawNpcs(gc);
         drawPlayer(gc);
         drawHud(gc);
 
@@ -171,6 +235,31 @@ public class GameScreen extends StackPane {
         }
     }
 
+    private void drawChaosEvents(GraphicsContext gc) {
+        for (ChaosEvent event : chaosEvents) {
+            gc.setStroke(Color.rgb(239, 68, 68, 0.25));
+            gc.setLineWidth(2);
+            gc.strokeOval(
+                    event.x() - event.radius() / 2.0,
+                    event.y() - event.radius() / 2.0,
+                    event.radius(),
+                    event.radius()
+            );
+        }
+    }
+
+    private void drawNpcs(GraphicsContext gc) {
+        for (EmployeeNpc employee : employees) {
+            gc.setFill(employee.color());
+            gc.fillRoundRect(employee.x() - 14, employee.y() - 14, 28, 28, 10, 10);
+            drawSpeechTag(gc, employee.x(), employee.y() - 24, employee.reactionText(), Color.web("#1f2937"));
+        }
+
+        gc.setFill(manager.color());
+        gc.fillRoundRect(manager.x() - 16, manager.y() - 16, 32, 32, 12, 12);
+        drawSpeechTag(gc, manager.x(), manager.y() - 28, manager.statusText(), Color.web("#5b21b6"));
+    }
+
     private void drawPlayer(GraphicsContext gc) {
         gc.setFill(Color.web("#d97706"));
         gc.fillRoundRect(player.x(), player.y(), player.width(), player.height(), 14, 14);
@@ -182,7 +271,7 @@ public class GameScreen extends StackPane {
 
     private void drawHud(GraphicsContext gc) {
         gc.setFill(Color.rgb(17, 24, 39, 0.88));
-        gc.fillRoundRect(24, 18, 410, 92, 20, 20);
+        gc.fillRoundRect(24, 18, 430, 110, 20, 20);
 
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 18));
@@ -191,6 +280,7 @@ public class GameScreen extends StackPane {
         gc.setFont(Font.font("Verdana", 15));
         gc.fillText(String.format("Time left: %02d:%02d", (int) timeLeft / 60, (int) timeLeft % 60), 42, 74);
         gc.fillText("Goal: reach 100% chaos before the work day ends", 42, 96);
+        gc.fillText("Penalty: manager catch costs 10% chaos and 12 seconds", 42, 118);
 
         gc.setFill(Color.rgb(255, 255, 255, 0.2));
         gc.fillRoundRect(470, 28, 320, 24, 12, 12);
@@ -202,11 +292,12 @@ public class GameScreen extends StackPane {
         gc.fillText(String.format("Chaos: %.0f%%", chaosPercent), 585, 45);
 
         gc.setFill(Color.rgb(17, 24, 39, 0.88));
-        gc.fillRoundRect(820, 18, 420, 92, 20, 20);
+        gc.fillRoundRect(820, 18, 420, 110, 20, 20);
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Verdana", 15));
         gc.fillText("Controls: WASD / arrows to move, E to cause trouble", 842, 48);
         gc.fillText("Current MVP actions: keyboard nap, mug push, Wi-Fi sabotage", 842, 76);
+        gc.fillText("Manager: " + manager.statusText(), 842, 104);
     }
 
     private void drawPrompt(GraphicsContext gc, ChaosInteraction interaction) {
@@ -236,8 +327,20 @@ public class GameScreen extends StackPane {
 
         gc.setFont(Font.font("Verdana", 20));
         gc.fillText(String.format("Final chaos level: %.0f%%", chaosPercent), WIDTH / 2.0, 350);
-        gc.fillText("Restart by relaunching the app in this first iteration.", WIDTH / 2.0, 390);
+        gc.fillText("Restart is still app relaunch for now.", WIDTH / 2.0, 390);
         gc.setTextAlign(TextAlignment.LEFT);
+    }
+
+    private void drawSpeechTag(GraphicsContext gc, double centerX, double y, String text, Color background) {
+        gc.setFill(background);
+        gc.fillRoundRect(centerX - 62, y - 14, 124, 24, 12, 12);
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Verdana", 11));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setTextBaseline(VPos.CENTER);
+        gc.fillText(text, centerX, y - 2);
+        gc.setTextAlign(TextAlignment.LEFT);
+        gc.setTextBaseline(VPos.BASELINE);
     }
 
     private void buildOfficeLayout() {
@@ -253,26 +356,40 @@ public class GameScreen extends StackPane {
         interactions.add(new ChaosInteraction(
                 360, 157,
                 "Nap on a developer keyboard",
+                "keyboard chaos",
                 18,
                 5.0,
                 76,
+                180,
+                5.2,
                 Color.web("#60a5fa")
         ));
         interactions.add(new ChaosInteraction(
                 1040, 165,
                 "Push a coffee mug off the kitchen counter",
+                "spilled coffee",
                 12,
                 4.0,
                 70,
+                150,
+                4.6,
                 Color.web("#f59e0b")
         ));
         interactions.add(new ChaosInteraction(
                 1010, 430,
                 "Disable the office Wi-Fi router",
+                "Wi-Fi outage",
                 26,
                 8.0,
                 82,
+                320,
+                8.7,
                 Color.web("#ef4444")
         ));
+
+        employees.add(new EmployeeNpc("Mila", 165, 155, Color.web("#3b82f6")));
+        employees.add(new EmployeeNpc("Jon", 160, 250, Color.web("#22c55e")));
+        employees.add(new EmployeeNpc("Ava", 720, 185, Color.web("#f97316")));
+        employees.add(new EmployeeNpc("Noah", 960, 505, Color.web("#ec4899")));
     }
 }
