@@ -25,12 +25,12 @@ tasks.withType(JavaCompile) {
 
 application {
     mainModule = 'cat.game.officecatgame'
-    mainClass = 'cat.game.officecatgame.HelloApplication'
+    mainClass = 'cat.game.officecatgame.OfficeCatApplication'
 }
 
 javafx {
     version = '17.0.2'
-    modules = ['javafx.controls', 'javafx.fxml']
+    modules = ['javafx.controls']
 }
 
 dependencies {
