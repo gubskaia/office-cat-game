@@ -77,6 +77,9 @@ public class ManagerNpc {
     }
 
     private boolean canSeePlayer(PlayerCat player) {
+        if (player.isHidden()) {
+            return false;
+        }
         return distanceTo(player.centerX(), player.centerY()) < 145;
     }
 
@@ -93,6 +96,9 @@ public class ManagerNpc {
     }
 
     public boolean catches(PlayerCat player) {
+        if (player.isHidden()) {
+            return false;
+        }
         return distanceTo(player.centerX(), player.centerY()) < 48;
     }
 

@@ -99,6 +99,9 @@ public class EmployeeNpc {
     }
 
     private boolean canSeePlayer(PlayerCat player) {
+        if (player.isHidden()) {
+            return false;
+        }
         return distanceTo(player.centerX(), player.centerY()) < 85;
     }
 

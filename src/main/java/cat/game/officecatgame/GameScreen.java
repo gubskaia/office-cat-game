@@ -37,6 +37,7 @@ public class GameScreen extends StackPane {
     private final PlayerCat player = new PlayerCat(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
     private final List<Rect> walls = new ArrayList<>();
     private final List<ChaosInteraction> interactions = new ArrayList<>();
+    private final List<HideSpot> hideSpots = new ArrayList<>();
     private final List<ChaosEvent> chaosEvents = new ArrayList<>();
     private final List<EmployeeNpc> employees = new ArrayList<>();
     private final List<Point> managerPatrolPath = List.of(
@@ -56,6 +57,7 @@ public class GameScreen extends StackPane {
     private double timeLeft = DAY_DURATION_SECONDS;
     private double managerPenaltyCooldown;
     private boolean interactionHeld;
+    private HideSpot activeHideSpot;
     private boolean startHeld;
     private boolean pauseHeld;
     private boolean restartHeld;
@@ -165,6 +167,8 @@ public class GameScreen extends StackPane {
         interactionHeld = false;
         endMessage = "";
         player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
+        player.setHidden(false);
+        activeHideSpot = null;
         chaosEvents.clear();
 
         for (ChaosInteraction interaction : interactions) {
@@ -179,21 +183,54 @@ public class GameScreen extends StackPane {
     private void handleInteractionAttempt() {
         boolean pressed = input.isPressed(KeyCode.E);
         if (pressed && !interactionHeld && gameState == GameState.PLAYING) {
-            ChaosInteraction nearest = getNearestInteraction();
-            if (nearest != null && nearest.canTrigger()) {
-                nearest.trigger();
-                chaosPercent = Math.min(100, chaosPercent + nearest.chaosGain());
-                chaosEvents.add(new ChaosEvent(
-                        nearest.eventLabel(),
-                        nearest.x(),
-                        nearest.y(),
-                        nearest.eventRadius(),
-                        nearest.eventSeverity(),
-                        EVENT_DURATION_SECONDS
-                ));
+            if (player.isHidden()) {
+                exitHideSpot();
+            } else {
+                HideSpot nearestHideSpot = getNearestHideSpot();
+                ChaosInteraction nearest = getNearestInteraction();
+
+                if (nearestHideSpot != null && shouldPreferHideSpot(nearestHideSpot, nearest)) {
+                    enterHideSpot(nearestHideSpot);
+                } else if (nearest != null && nearest.canTrigger()) {
+                    nearest.trigger();
+                    chaosPercent = Math.min(100, chaosPercent + nearest.chaosGain());
+                    chaosEvents.add(new ChaosEvent(
+                            nearest.eventLabel(),
+                            nearest.x(),
+                            nearest.y(),
+                            nearest.eventRadius(),
+                            nearest.eventSeverity(),
+                            EVENT_DURATION_SECONDS
+                    ));
+                }
             }
         }
         interactionHeld = pressed;
+    }
+
+    private void enterHideSpot(HideSpot hideSpot) {
+        activeHideSpot = hideSpot;
+        player.setPosition(hideSpot.x() - player.width() / 2.0, hideSpot.y() - player.height() / 2.0);
+        player.setHidden(true);
+    }
+
+    private void exitHideSpot() {
+        if (activeHideSpot != null) {
+            player.setPosition(activeHideSpot.x() + 34, activeHideSpot.y());
+        }
+        player.setHidden(false);
+        activeHideSpot = null;
+    }
+
+    private boolean shouldPreferHideSpot(HideSpot hideSpot, ChaosInteraction interaction) {
+        if (hideSpot == null) {
+            return false;
+        }
+        if (interaction == null) {
+            return true;
+        }
+        return hideSpot.distanceTo(player.centerX(), player.centerY())
+                <= interaction.distanceTo(player.centerX(), player.centerY());
     }
 
     private void updateChaosEvents(double deltaSeconds) {
@@ -225,11 +262,17 @@ public class GameScreen extends StackPane {
             managerPenaltyCooldown = MANAGER_PENALTY_COOLDOWN_SECONDS;
             chaosPercent = Math.max(0, chaosPercent - 10);
             timeLeft = Math.max(0, timeLeft - 12);
+            player.setHidden(false);
+            activeHideSpot = null;
             player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
         }
     }
 
     private ChaosInteraction getNearestInteraction() {
+        if (player.isHidden()) {
+            return null;
+        }
+
         ChaosInteraction result = null;
         double bestDistance = Double.MAX_VALUE;
 
@@ -244,18 +287,45 @@ public class GameScreen extends StackPane {
         return result;
     }
 
+    private HideSpot getNearestHideSpot() {
+        if (player.isHidden()) {
+            return activeHideSpot;
+        }
+
+        HideSpot result = null;
+        double bestDistance = Double.MAX_VALUE;
+
+        for (HideSpot hideSpot : hideSpots) {
+            double distance = hideSpot.distanceTo(player.centerX(), player.centerY());
+            if (distance <= hideSpot.promptRadius() && distance < bestDistance) {
+                bestDistance = distance;
+                result = hideSpot;
+            }
+        }
+
+        return result;
+    }
+
     private void render() {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         drawOffice(gc);
         drawChaosEvents(gc);
         drawInteractions(gc);
+        drawHideSpots(gc);
         drawNpcs(gc);
         drawPlayer(gc);
         drawHud(gc);
 
         ChaosInteraction nearest = getNearestInteraction();
-        if (gameState == GameState.PLAYING && nearest != null) {
-            drawPrompt(gc, nearest);
+        HideSpot nearestHideSpot = getNearestHideSpot();
+        if (gameState == GameState.PLAYING) {
+            if (player.isHidden()) {
+                drawHidePrompt(gc);
+            } else if (nearestHideSpot != null && shouldPreferHideSpot(nearestHideSpot, nearest)) {
+                drawHideSpotPrompt(gc, nearestHideSpot);
+            } else if (nearest != null) {
+                drawPrompt(gc, nearest);
+            }
         }
 
         if (gameState == GameState.MENU) {
@@ -312,6 +382,15 @@ public class GameScreen extends StackPane {
         }
     }
 
+    private void drawHideSpots(GraphicsContext gc) {
+        for (HideSpot hideSpot : hideSpots) {
+            gc.setFill(Color.web("#c08457"));
+            gc.fillRoundRect(hideSpot.x() - 20, hideSpot.y() - 20, 40, 40, 8, 8);
+            gc.setStroke(Color.web("#7c5a36"));
+            gc.strokeRoundRect(hideSpot.x() - 20, hideSpot.y() - 20, 40, 40, 8, 8);
+        }
+    }
+
     private void drawChaosEvents(GraphicsContext gc) {
         for (ChaosEvent event : chaosEvents) {
             gc.setStroke(Color.rgb(239, 68, 68, 0.25));
@@ -338,6 +417,12 @@ public class GameScreen extends StackPane {
     }
 
     private void drawPlayer(GraphicsContext gc) {
+        if (player.isHidden()) {
+            gc.setFill(Color.rgb(217, 119, 6, 0.18));
+            gc.fillRoundRect(player.x(), player.y(), player.width(), player.height(), 14, 14);
+            return;
+        }
+
         gc.setFill(Color.web("#d97706"));
         gc.fillRoundRect(player.x(), player.y(), player.width(), player.height(), 14, 14);
 
@@ -357,7 +442,7 @@ public class GameScreen extends StackPane {
         gc.setFont(Font.font("Verdana", 15));
         gc.fillText(String.format("Time left: %02d:%02d", (int) timeLeft / 60, (int) timeLeft % 60), 42, 74);
         gc.fillText("Goal: reach 100% chaos before the work day ends", 42, 96);
-        gc.fillText("Penalty: manager catch costs 10% chaos and 12 seconds", 42, 118);
+        gc.fillText(player.isHidden() ? "Status: hidden in a box" : "Status: exposed and chaotic", 42, 118);
 
         gc.setFill(Color.rgb(255, 255, 255, 0.2));
         gc.fillRoundRect(470, 28, 320, 24, 12, 12);
@@ -373,7 +458,7 @@ public class GameScreen extends StackPane {
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Verdana", 15));
         gc.fillText("Controls: WASD / arrows to move, E to cause trouble", 842, 48);
-        gc.fillText("Current MVP actions: keyboard nap, mug push, Wi-Fi sabotage", 842, 76);
+        gc.fillText("Actions: keyboard nap, mug push, Wi-Fi, meeting meow, paper shred", 842, 76);
         gc.fillText("Manager: " + manager.statusText(), 842, 104);
         gc.fillText("State: " + gameState.name(), 842, 126);
     }
@@ -387,6 +472,32 @@ public class GameScreen extends StackPane {
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
         gc.fillText("[E] " + interaction.promptText(), WIDTH / 2.0, 659);
+        gc.setTextAlign(TextAlignment.LEFT);
+        gc.setTextBaseline(VPos.BASELINE);
+    }
+
+    private void drawHideSpotPrompt(GraphicsContext gc, HideSpot hideSpot) {
+        gc.setFill(Color.rgb(17, 24, 39, 0.92));
+        gc.fillRoundRect(420, 635, 440, 48, 16, 16);
+
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 16));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setTextBaseline(VPos.CENTER);
+        gc.fillText("[E] Hide in " + hideSpot.label(), WIDTH / 2.0, 659);
+        gc.setTextAlign(TextAlignment.LEFT);
+        gc.setTextBaseline(VPos.BASELINE);
+    }
+
+    private void drawHidePrompt(GraphicsContext gc) {
+        gc.setFill(Color.rgb(17, 24, 39, 0.92));
+        gc.fillRoundRect(420, 635, 440, 48, 16, 16);
+
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 16));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setTextBaseline(VPos.CENTER);
+        gc.fillText("[E] Sneak out of the box", WIDTH / 2.0, 659);
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.BASELINE);
     }
@@ -426,7 +537,7 @@ public class GameScreen extends StackPane {
 
         gc.setFont(Font.font("Verdana", 18));
         gc.fillText("Reach 100% chaos before the work day ends.", WIDTH / 2.0, 338);
-        gc.fillText("Avoid the manager, trigger distractions, and keep moving.", WIDTH / 2.0, 370);
+        gc.fillText("Avoid the manager, trigger distractions, and hide in boxes.", WIDTH / 2.0, 370);
         gc.fillText("[Enter] Start run", WIDTH / 2.0, 430);
         gc.fillText("[WASD / Arrows] Move    [E] Interact    [Esc / P] Pause", WIDTH / 2.0, 468);
         gc.setTextAlign(TextAlignment.LEFT);
@@ -472,6 +583,10 @@ public class GameScreen extends StackPane {
         walls.add(new Rect(120, 560, 280, 32));
         walls.add(new Rect(540, 560, 120, 32));
 
+        hideSpots.add(new HideSpot(120, 340, 68, "storage box"));
+        hideSpots.add(new HideSpot(916, 175, 68, "meeting room box"));
+        hideSpots.add(new HideSpot(1180, 520, 68, "director archive box"));
+
         interactions.add(new ChaosInteraction(
                 360, 157,
                 "Nap on a developer keyboard",
@@ -504,6 +619,28 @@ public class GameScreen extends StackPane {
                 320,
                 8.7,
                 Color.web("#ef4444")
+        ));
+        interactions.add(new ChaosInteraction(
+                730, 165,
+                "Meow during the online meeting",
+                "meeting disruption",
+                16,
+                5.5,
+                78,
+                240,
+                6.4,
+                Color.web("#8b5cf6")
+        ));
+        interactions.add(new ChaosInteraction(
+                1110, 430,
+                "Scatter the director's paperwork",
+                "paper catastrophe",
+                20,
+                6.2,
+                80,
+                210,
+                7.2,
+                Color.web("#10b981")
         ));
 
         employees.add(new EmployeeNpc("Mila", 165, 155, Color.web("#3b82f6")));

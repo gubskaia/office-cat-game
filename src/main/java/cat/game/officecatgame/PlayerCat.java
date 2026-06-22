@@ -11,6 +11,7 @@ public class PlayerCat {
     private double y;
     private final double width = 38;
     private final double height = 38;
+    private boolean hidden;
 
     public PlayerCat(double x, double y) {
         this.x = x;
@@ -18,6 +19,10 @@ public class PlayerCat {
     }
 
     public void update(InputState input, double deltaSeconds, List<Rect> walls) {
+        if (hidden) {
+            return;
+        }
+
         double dx = 0;
         double dy = 0;
 
@@ -112,5 +117,13 @@ public class PlayerCat {
     public void setPosition(double nextX, double nextY) {
         x = nextX;
         y = nextY;
+    }
+
+    public boolean isHidden() {
+        return hidden;
+    }
+
+    public void setHidden(boolean hidden) {
+        this.hidden = hidden;
     }
 }
