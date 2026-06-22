@@ -3,6 +3,25 @@ package cat.game.officecatgame;
 import javafx.scene.paint.Color;
 
 public class EmployeeNpc {
+    private static final String[] INVESTIGATION_LINES = {
+            "Checking the noise",
+            "Who did that?",
+            "Again?!",
+            "This office is cursed"
+    };
+    private static final String[] PANIC_LINES = {
+            "What was that?!",
+            "Everything is breaking!",
+            "Not the deadline day!",
+            "This is a disaster!"
+    };
+    private static final String[] SPOTTED_LINES = {
+            "Cat spotted!",
+            "There it is!",
+            "Someone grab the cat!",
+            "The menace is back!"
+    };
+
     public enum State {
         WORKING,
         DISTRACTED,
@@ -56,7 +75,7 @@ public class EmployeeNpc {
 
         if (canSeePlayer(player) && state != State.PANICKING) {
             state = State.PANICKING;
-            reactionText = "Cat spotted!";
+            reactionText = pickLine(SPOTTED_LINES, name.hashCode());
             reactionTimer = 2.4;
             targetX = player.x();
             targetY = player.y();
@@ -83,14 +102,14 @@ public class EmployeeNpc {
     private void reactToEvent(ChaosEvent event) {
         if (event.severity() >= 7.5) {
             state = State.PANICKING;
-            reactionText = "What was that?!";
+            reactionText = pickLine(PANIC_LINES, event.label().hashCode() + name.hashCode());
             reactionTimer = 3.2;
             targetX = event.x();
             targetY = event.y();
             productivity = 0.0;
         } else {
             state = State.INVESTIGATING;
-            reactionText = "Checking " + event.label();
+            reactionText = pickLine(INVESTIGATION_LINES, event.label().hashCode() + name.hashCode());
             reactionTimer = 2.2;
             targetX = event.x();
             targetY = event.y();
@@ -147,5 +166,10 @@ public class EmployeeNpc {
 
     public double productivity() {
         return productivity;
+    }
+
+    private String pickLine(String[] variants, int seed) {
+        int index = Math.floorMod(seed, variants.length);
+        return variants[index];
     }
 }

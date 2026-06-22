@@ -31,6 +31,7 @@ public class GameScreen extends StackPane {
     private static final double EVENT_DURATION_SECONDS = 2.8;
     private static final double MANAGER_PENALTY_COOLDOWN_SECONDS = 4.0;
     private static final double COMBO_WINDOW_SECONDS = 6.0;
+    private static final double SHAKE_DECAY_PER_SECOND = 3.4;
     private static final Point PLAYER_RESPAWN = new Point(90, 110);
 
     private final Canvas canvas = new Canvas(WIDTH, HEIGHT);
@@ -41,6 +42,7 @@ public class GameScreen extends StackPane {
     private final List<HideSpot> hideSpots = new ArrayList<>();
     private final List<ChaosEvent> chaosEvents = new ArrayList<>();
     private final List<FloatingText> floatingTexts = new ArrayList<>();
+    private final List<IncidentFeedEntry> incidentFeed = new ArrayList<>();
     private final List<ChaosObjective> objectiveDeck = List.of(
             new ChaosObjective("keyboard", "Keyboard Tyrant", "Nap on the developer keyboard", 8),
             new ChaosObjective("mug", "Coffee Disaster", "Knock the kitchen mug to the floor", 7),
@@ -66,6 +68,8 @@ public class GameScreen extends StackPane {
     private double timeLeft = DAY_DURATION_SECONDS;
     private double managerPenaltyCooldown;
     private double comboTimer;
+    private double shakeIntensity;
+    private double shakePhase;
     private int comboCount;
     private int objectiveIndex;
     private ChaosObjective currentObjective;
@@ -116,6 +120,8 @@ public class GameScreen extends StackPane {
             timeLeft = Math.max(0, timeLeft - deltaSeconds);
             managerPenaltyCooldown = Math.max(0, managerPenaltyCooldown - deltaSeconds);
             comboTimer = Math.max(0, comboTimer - deltaSeconds);
+            shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
+            shakePhase += deltaSeconds * 34;
             if (comboTimer == 0) {
                 comboCount = 0;
             }
@@ -123,6 +129,7 @@ public class GameScreen extends StackPane {
             handleInteractionAttempt();
             updateChaosEvents(deltaSeconds);
             updateFloatingTexts(deltaSeconds);
+            updateIncidentFeed(deltaSeconds);
             updateNpcs(deltaSeconds);
             handleManagerCatch();
 
@@ -184,6 +191,8 @@ public class GameScreen extends StackPane {
         managerPenaltyCooldown = 0;
         comboTimer = 0;
         comboCount = 0;
+        shakeIntensity = 0;
+        shakePhase = 0;
         objectiveIndex = 0;
         currentObjective = nextObjective();
         interactionHeld = false;
@@ -193,6 +202,7 @@ public class GameScreen extends StackPane {
         activeHideSpot = null;
         chaosEvents.clear();
         floatingTexts.clear();
+        incidentFeed.clear();
 
         for (ChaosInteraction interaction : interactions) {
             interaction.reset();
@@ -226,6 +236,7 @@ public class GameScreen extends StackPane {
                             nearest.eventSeverity(),
                             EVENT_DURATION_SECONDS
                     ));
+                    addIncident("Chaos: " + nearest.eventLabel());
                     floatingTexts.add(new FloatingText(
                             String.format("+%.0f chaos", chaosGain),
                             nearest.x(),
@@ -238,10 +249,11 @@ public class GameScreen extends StackPane {
                                 "Combo x" + comboCount,
                                 nearest.x(),
                                 nearest.y() - 40,
-                                Color.web("#fbbf24"),
-                                1.4
+                            Color.web("#fbbf24"),
+                            1.4
                         ));
                     }
+                    addShake(nearest.eventSeverity() >= 7 ? 7.5 : 4.0);
                     checkObjectiveCompletion(nearest);
                 }
             }
@@ -270,6 +282,7 @@ public class GameScreen extends StackPane {
 
         currentObjective.complete();
         chaosPercent = Math.min(100, chaosPercent + currentObjective.bonusChaos());
+        addIncident("Objective complete: " + currentObjective.title());
         floatingTexts.add(new FloatingText(
                 currentObjective.title() + " complete!",
                 interaction.x(),
@@ -329,6 +342,11 @@ public class GameScreen extends StackPane {
         floatingTexts.removeIf(text -> !text.isAlive());
     }
 
+    private void updateIncidentFeed(double deltaSeconds) {
+        incidentFeed.forEach(entry -> entry.update(deltaSeconds));
+        incidentFeed.removeIf(entry -> !entry.isAlive());
+    }
+
     private void updateNpcs(double deltaSeconds) {
         for (EmployeeNpc employee : employees) {
             employee.update(deltaSeconds, player, strongestEventNear(employee.x(), employee.y(), 165));
@@ -366,6 +384,8 @@ public class GameScreen extends StackPane {
             player.setHidden(false);
             activeHideSpot = null;
             player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
+            addIncident("Manager intercepted the cat");
+            addShake(9.0);
             floatingTexts.add(new FloatingText(
                     "Manager caught you! -10 chaos",
                     PLAYER_RESPAWN.x() + 100,
@@ -416,6 +436,8 @@ public class GameScreen extends StackPane {
 
     private void render() {
         GraphicsContext gc = canvas.getGraphicsContext2D();
+        gc.save();
+        applyCameraShake(gc);
         drawOffice(gc);
         drawChaosEvents(gc);
         drawInteractions(gc);
@@ -423,7 +445,9 @@ public class GameScreen extends StackPane {
         drawNpcs(gc);
         drawPlayer(gc);
         drawFloatingTexts(gc);
+        gc.restore();
         drawHud(gc);
+        drawIncidentFeed(gc);
 
         ChaosInteraction nearest = getNearestInteraction();
         HideSpot nearestHideSpot = getNearestHideSpot();
@@ -444,6 +468,15 @@ public class GameScreen extends StackPane {
         } else if (gameState == GameState.FINISHED) {
             drawGameOverOverlay(gc);
         }
+    }
+
+    private void applyCameraShake(GraphicsContext gc) {
+        if (shakeIntensity <= 0) {
+            return;
+        }
+        double offsetX = Math.sin(shakePhase) * shakeIntensity;
+        double offsetY = Math.cos(shakePhase * 1.6) * shakeIntensity * 0.7;
+        gc.translate(offsetX, offsetY);
     }
 
     private void drawOffice(GraphicsContext gc) {
@@ -597,6 +630,25 @@ public class GameScreen extends StackPane {
         }
     }
 
+    private void drawIncidentFeed(GraphicsContext gc) {
+        gc.setFill(Color.rgb(17, 24, 39, 0.88));
+        gc.fillRoundRect(958, 160, 282, 120, 18, 18);
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 15));
+        gc.fillText("Recent Incidents", 978, 186);
+        gc.setFont(Font.font("Verdana", 13));
+
+        int line = 0;
+        for (IncidentFeedEntry entry : incidentFeed) {
+            if (line >= 4) {
+                break;
+            }
+            gc.setFill(Color.WHITE.deriveColor(0, 1, 1, entry.alpha()));
+            gc.fillText("- " + entry.text(), 978, 210 + line * 18);
+            line++;
+        }
+    }
+
     private void drawPrompt(GraphicsContext gc, ChaosInteraction interaction) {
         gc.setFill(Color.rgb(17, 24, 39, 0.92));
         gc.fillRoundRect(420, 635, 440, 48, 16, 16);
@@ -673,8 +725,9 @@ public class GameScreen extends StackPane {
         gc.fillText("Reach 100% chaos before the work day ends.", WIDTH / 2.0, 338);
         gc.fillText("Avoid the manager, trigger distractions, and hide in boxes.", WIDTH / 2.0, 370);
         gc.fillText("Follow daily cat objectives for bonus chaos.", WIDTH / 2.0, 402);
-        gc.fillText("[Enter] Start run", WIDTH / 2.0, 430);
-        gc.fillText("[WASD / Arrows] Move    [E] Interact    [Esc / P] Pause", WIDTH / 2.0, 468);
+        gc.fillText("Big sabotage events now shake the office view.", WIDTH / 2.0, 430);
+        gc.fillText("[Enter] Start run", WIDTH / 2.0, 462);
+        gc.fillText("[WASD / Arrows] Move    [E] Interact    [Esc / P] Pause", WIDTH / 2.0, 494);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
@@ -787,5 +840,16 @@ public class GameScreen extends StackPane {
         employees.add(new EmployeeNpc("Jon", 160, 250, Color.web("#22c55e")));
         employees.add(new EmployeeNpc("Ava", 720, 185, Color.web("#f97316")));
         employees.add(new EmployeeNpc("Noah", 960, 505, Color.web("#ec4899")));
+    }
+
+    private void addIncident(String text) {
+        incidentFeed.add(0, new IncidentFeedEntry(text, 6.0));
+        while (incidentFeed.size() > 5) {
+            incidentFeed.remove(incidentFeed.size() - 1);
+        }
+    }
+
+    private void addShake(double amount) {
+        shakeIntensity = Math.max(shakeIntensity, amount);
     }
 }
