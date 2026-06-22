@@ -30,6 +30,7 @@ public class GameScreen extends StackPane {
     private static final double DAY_DURATION_SECONDS = 180.0;
     private static final double EVENT_DURATION_SECONDS = 2.8;
     private static final double MANAGER_PENALTY_COOLDOWN_SECONDS = 4.0;
+    private static final double COMBO_WINDOW_SECONDS = 6.0;
     private static final Point PLAYER_RESPAWN = new Point(90, 110);
 
     private final Canvas canvas = new Canvas(WIDTH, HEIGHT);
@@ -39,6 +40,7 @@ public class GameScreen extends StackPane {
     private final List<ChaosInteraction> interactions = new ArrayList<>();
     private final List<HideSpot> hideSpots = new ArrayList<>();
     private final List<ChaosEvent> chaosEvents = new ArrayList<>();
+    private final List<FloatingText> floatingTexts = new ArrayList<>();
     private final List<EmployeeNpc> employees = new ArrayList<>();
     private final List<Point> managerPatrolPath = List.of(
             new Point(760, 130),
@@ -56,6 +58,8 @@ public class GameScreen extends StackPane {
     private double chaosPercent;
     private double timeLeft = DAY_DURATION_SECONDS;
     private double managerPenaltyCooldown;
+    private double comboTimer;
+    private int comboCount;
     private boolean interactionHeld;
     private HideSpot activeHideSpot;
     private boolean startHeld;
@@ -102,9 +106,14 @@ public class GameScreen extends StackPane {
         if (gameState == GameState.PLAYING) {
             timeLeft = Math.max(0, timeLeft - deltaSeconds);
             managerPenaltyCooldown = Math.max(0, managerPenaltyCooldown - deltaSeconds);
+            comboTimer = Math.max(0, comboTimer - deltaSeconds);
+            if (comboTimer == 0) {
+                comboCount = 0;
+            }
             player.update(input, deltaSeconds, walls);
             handleInteractionAttempt();
             updateChaosEvents(deltaSeconds);
+            updateFloatingTexts(deltaSeconds);
             updateNpcs(deltaSeconds);
             handleManagerCatch();
 
@@ -164,12 +173,15 @@ public class GameScreen extends StackPane {
         chaosPercent = 0;
         timeLeft = DAY_DURATION_SECONDS;
         managerPenaltyCooldown = 0;
+        comboTimer = 0;
+        comboCount = 0;
         interactionHeld = false;
         endMessage = "";
         player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
         player.setHidden(false);
         activeHideSpot = null;
         chaosEvents.clear();
+        floatingTexts.clear();
 
         for (ChaosInteraction interaction : interactions) {
             interaction.reset();
@@ -193,7 +205,8 @@ public class GameScreen extends StackPane {
                     enterHideSpot(nearestHideSpot);
                 } else if (nearest != null && nearest.canTrigger()) {
                     nearest.trigger();
-                    chaosPercent = Math.min(100, chaosPercent + nearest.chaosGain());
+                    double chaosGain = applyCombo(nearest);
+                    chaosPercent = Math.min(100, chaosPercent + chaosGain);
                     chaosEvents.add(new ChaosEvent(
                             nearest.eventLabel(),
                             nearest.x(),
@@ -202,10 +215,33 @@ public class GameScreen extends StackPane {
                             nearest.eventSeverity(),
                             EVENT_DURATION_SECONDS
                     ));
+                    floatingTexts.add(new FloatingText(
+                            String.format("+%.0f chaos", chaosGain),
+                            nearest.x(),
+                            nearest.y() - 18,
+                            Color.web("#ef4444"),
+                            1.2
+                    ));
+                    if (comboCount >= 2) {
+                        floatingTexts.add(new FloatingText(
+                                "Combo x" + comboCount,
+                                nearest.x(),
+                                nearest.y() - 40,
+                                Color.web("#fbbf24"),
+                                1.4
+                        ));
+                    }
                 }
             }
         }
         interactionHeld = pressed;
+    }
+
+    private double applyCombo(ChaosInteraction interaction) {
+        comboCount = Math.min(comboCount + 1, 5);
+        comboTimer = COMBO_WINDOW_SECONDS;
+        double multiplier = 1.0 + (comboCount - 1) * 0.18;
+        return interaction.chaosGain() * multiplier;
     }
 
     private void enterHideSpot(HideSpot hideSpot) {
@@ -238,11 +274,24 @@ public class GameScreen extends StackPane {
         chaosEvents.removeIf(event -> !event.isActive());
     }
 
+    private void updateFloatingTexts(double deltaSeconds) {
+        floatingTexts.forEach(text -> text.update(deltaSeconds));
+        floatingTexts.removeIf(text -> !text.isAlive());
+    }
+
     private void updateNpcs(double deltaSeconds) {
         for (EmployeeNpc employee : employees) {
             employee.update(deltaSeconds, player, strongestEventNear(employee.x(), employee.y(), 165));
         }
-        manager.update(deltaSeconds, player, strongestEventNear(manager.x(), manager.y(), 260));
+        manager.update(deltaSeconds, player, strongestEventNear(manager.x(), manager.y(), 260), currentChaosPressure());
+    }
+
+    private double currentChaosPressure() {
+        double pressure = chaosPercent / 40.0;
+        if (comboCount >= 3 && comboTimer > 0) {
+            pressure += 0.45;
+        }
+        return Math.min(2.0, pressure);
     }
 
     private ChaosEvent strongestEventNear(double x, double y, double maxDistance) {
@@ -262,9 +311,18 @@ public class GameScreen extends StackPane {
             managerPenaltyCooldown = MANAGER_PENALTY_COOLDOWN_SECONDS;
             chaosPercent = Math.max(0, chaosPercent - 10);
             timeLeft = Math.max(0, timeLeft - 12);
+            comboTimer = 0;
+            comboCount = 0;
             player.setHidden(false);
             activeHideSpot = null;
             player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
+            floatingTexts.add(new FloatingText(
+                    "Manager caught you! -10 chaos",
+                    PLAYER_RESPAWN.x() + 100,
+                    PLAYER_RESPAWN.y() - 12,
+                    Color.web("#93c5fd"),
+                    1.6
+            ));
         }
     }
 
@@ -314,6 +372,7 @@ public class GameScreen extends StackPane {
         drawHideSpots(gc);
         drawNpcs(gc);
         drawPlayer(gc);
+        drawFloatingTexts(gc);
         drawHud(gc);
 
         ChaosInteraction nearest = getNearestInteraction();
@@ -431,9 +490,19 @@ public class GameScreen extends StackPane {
         gc.fillOval(player.x() + 22, player.y() + 9, 8, 8);
     }
 
+    private void drawFloatingTexts(GraphicsContext gc) {
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 16));
+        for (FloatingText text : floatingTexts) {
+            gc.setFill(text.color().deriveColor(0, 1, 1, text.alpha()));
+            gc.fillText(text.text(), text.x(), text.y());
+        }
+        gc.setTextAlign(TextAlignment.LEFT);
+    }
+
     private void drawHud(GraphicsContext gc) {
         gc.setFill(Color.rgb(17, 24, 39, 0.88));
-        gc.fillRoundRect(24, 18, 430, 110, 20, 20);
+        gc.fillRoundRect(24, 18, 470, 130, 20, 20);
 
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 18));
@@ -443,6 +512,9 @@ public class GameScreen extends StackPane {
         gc.fillText(String.format("Time left: %02d:%02d", (int) timeLeft / 60, (int) timeLeft % 60), 42, 74);
         gc.fillText("Goal: reach 100% chaos before the work day ends", 42, 96);
         gc.fillText(player.isHidden() ? "Status: hidden in a box" : "Status: exposed and chaotic", 42, 118);
+        gc.fillText(comboCount > 1 && comboTimer > 0
+                ? String.format("Combo x%d active for %.1fs", comboCount, comboTimer)
+                : "Combo: build a streak by chaining chaos quickly", 42, 140);
 
         gc.setFill(Color.rgb(255, 255, 255, 0.2));
         gc.fillRoundRect(470, 28, 320, 24, 12, 12);
@@ -454,13 +526,14 @@ public class GameScreen extends StackPane {
         gc.fillText(String.format("Chaos: %.0f%%", chaosPercent), 585, 45);
 
         gc.setFill(Color.rgb(17, 24, 39, 0.88));
-        gc.fillRoundRect(820, 18, 420, 110, 20, 20);
+        gc.fillRoundRect(790, 18, 450, 130, 20, 20);
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Verdana", 15));
-        gc.fillText("Controls: WASD / arrows to move, E to cause trouble", 842, 48);
-        gc.fillText("Actions: keyboard nap, mug push, Wi-Fi, meeting meow, paper shred", 842, 76);
-        gc.fillText("Manager: " + manager.statusText(), 842, 104);
-        gc.fillText("State: " + gameState.name(), 842, 126);
+        gc.fillText("Controls: WASD / arrows to move, E to cause trouble", 812, 48);
+        gc.fillText("Actions: keyboard nap, mug push, Wi-Fi, meeting meow, paper shred", 812, 76);
+        gc.fillText("Manager: " + manager.statusText(), 812, 104);
+        gc.fillText(String.format("Pressure: %.0f%%", currentChaosPressure() * 50), 812, 132);
+        gc.fillText("State: " + gameState.name(), 1060, 132);
     }
 
     private void drawPrompt(GraphicsContext gc, ChaosInteraction interaction) {

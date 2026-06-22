@@ -37,31 +37,35 @@ public class ManagerNpc {
         investigateTimer = 0;
     }
 
-    public void update(double deltaSeconds, PlayerCat player, ChaosEvent strongestEvent) {
+    public void update(double deltaSeconds, PlayerCat player, ChaosEvent strongestEvent, double chaosPressure) {
+        double patrolSpeed = PATROL_SPEED + chaosPressure * 14;
+        double chaseSpeed = CHASE_SPEED + chaosPressure * 22;
+        double sightRange = 145 + chaosPressure * 26;
+
         if (strongestEvent != null && strongestEvent.severity() >= 5.5) {
             mode = Mode.INVESTIGATING;
             statusText = "Investigating " + strongestEvent.label();
             investigateTimer = 3.6;
-            moveToward(strongestEvent.x(), strongestEvent.y(), PATROL_SPEED + 15, deltaSeconds);
-        } else if (canSeePlayer(player)) {
+            moveToward(strongestEvent.x(), strongestEvent.y(), patrolSpeed + 15, deltaSeconds);
+        } else if (canSeePlayer(player, sightRange)) {
             mode = Mode.CHASING;
-            statusText = "Chasing the cat!";
-            moveToward(player.x(), player.y(), CHASE_SPEED, deltaSeconds);
+            statusText = chaosPressure >= 1.5 ? "Full panic pursuit!" : "Chasing the cat!";
+            moveToward(player.x(), player.y(), chaseSpeed, deltaSeconds);
         } else if (investigateTimer > 0) {
             investigateTimer = Math.max(0, investigateTimer - deltaSeconds);
-            moveToward(currentPatrolPoint().x(), currentPatrolPoint().y(), PATROL_SPEED, deltaSeconds);
+            moveToward(currentPatrolPoint().x(), currentPatrolPoint().y(), patrolSpeed, deltaSeconds);
             if (investigateTimer == 0) {
                 mode = Mode.PATROLLING;
                 statusText = "Patrolling";
             }
         } else {
             mode = Mode.PATROLLING;
-            statusText = "Patrolling";
-            patrol(deltaSeconds);
+            statusText = chaosPressure >= 1.5 ? "Alert patrol" : "Patrolling";
+            patrol(deltaSeconds, patrolSpeed);
         }
     }
 
-    private void patrol(double deltaSeconds) {
+    private void patrol(double deltaSeconds, double patrolSpeed) {
         Point patrolPoint = currentPatrolPoint();
         double dx = patrolPoint.x() - x;
         double dy = patrolPoint.y() - y;
@@ -69,18 +73,18 @@ public class ManagerNpc {
             patrolIndex = (patrolIndex + 1) % patrolPoints.size();
             patrolPoint = currentPatrolPoint();
         }
-        moveToward(patrolPoint.x(), patrolPoint.y(), PATROL_SPEED, deltaSeconds);
+        moveToward(patrolPoint.x(), patrolPoint.y(), patrolSpeed, deltaSeconds);
     }
 
     private Point currentPatrolPoint() {
         return patrolPoints.get(patrolIndex);
     }
 
-    private boolean canSeePlayer(PlayerCat player) {
+    private boolean canSeePlayer(PlayerCat player, double sightRange) {
         if (player.isHidden()) {
             return false;
         }
-        return distanceTo(player.centerX(), player.centerY()) < 145;
+        return distanceTo(player.centerX(), player.centerY()) < sightRange;
     }
 
     private void moveToward(double destinationX, double destinationY, double speed, double deltaSeconds) {
