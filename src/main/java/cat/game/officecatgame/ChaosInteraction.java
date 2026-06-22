@@ -48,6 +48,10 @@ public class ChaosInteraction {
         availableAtMillis = System.currentTimeMillis() + (long) (cooldownSeconds * 1000);
     }
 
+    public void reset() {
+        availableAtMillis = 0;
+    }
+
     public double distanceTo(double px, double py) {
         return Math.hypot(px - x, py - y);
     }

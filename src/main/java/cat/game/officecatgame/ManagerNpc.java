@@ -28,6 +28,15 @@ public class ManagerNpc {
         this.patrolPoints = patrolPoints;
     }
 
+    public void reset(double nextX, double nextY) {
+        x = nextX;
+        y = nextY;
+        patrolIndex = 0;
+        mode = Mode.PATROLLING;
+        statusText = "Patrolling";
+        investigateTimer = 0;
+    }
+
     public void update(double deltaSeconds, PlayerCat player, ChaosEvent strongestEvent) {
         if (strongestEvent != null && strongestEvent.severity() >= 5.5) {
             mode = Mode.INVESTIGATING;

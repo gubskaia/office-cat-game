@@ -17,6 +17,13 @@ import java.util.Comparator;
 import java.util.List;
 
 public class GameScreen extends StackPane {
+    private enum GameState {
+        MENU,
+        PLAYING,
+        PAUSED,
+        FINISHED
+    }
+
     public static final int WIDTH = 1280;
     public static final int HEIGHT = 720;
 
@@ -32,23 +39,27 @@ public class GameScreen extends StackPane {
     private final List<ChaosInteraction> interactions = new ArrayList<>();
     private final List<ChaosEvent> chaosEvents = new ArrayList<>();
     private final List<EmployeeNpc> employees = new ArrayList<>();
-    private final ManagerNpc manager = new ManagerNpc(
-            780, 180,
-            List.of(
-                    new Point(760, 130),
-                    new Point(1120, 180),
-                    new Point(1090, 520),
-                    new Point(620, 510),
-                    new Point(260, 340)
-            )
+    private final List<Point> managerPatrolPath = List.of(
+            new Point(760, 130),
+            new Point(1120, 180),
+            new Point(1090, 520),
+            new Point(620, 510),
+            new Point(260, 340)
     );
+
+    private final Point managerSpawn = new Point(780, 180);
+
+    private ManagerNpc manager = new ManagerNpc(managerSpawn.x(), managerSpawn.y(), managerPatrolPath);
 
     private AnimationTimer loop;
     private double chaosPercent;
     private double timeLeft = DAY_DURATION_SECONDS;
     private double managerPenaltyCooldown;
     private boolean interactionHeld;
-    private boolean gameFinished;
+    private boolean startHeld;
+    private boolean pauseHeld;
+    private boolean restartHeld;
+    private GameState gameState = GameState.MENU;
     private String endMessage = "";
 
     public GameScreen() {
@@ -84,7 +95,9 @@ public class GameScreen extends StackPane {
     }
 
     private void update(double deltaSeconds) {
-        if (!gameFinished) {
+        handleStateInput();
+
+        if (gameState == GameState.PLAYING) {
             timeLeft = Math.max(0, timeLeft - deltaSeconds);
             managerPenaltyCooldown = Math.max(0, managerPenaltyCooldown - deltaSeconds);
             player.update(input, deltaSeconds, walls);
@@ -94,18 +107,78 @@ public class GameScreen extends StackPane {
             handleManagerCatch();
 
             if (chaosPercent >= 100) {
-                gameFinished = true;
+                gameState = GameState.FINISHED;
                 endMessage = "Victory! The office is fully consumed by cat chaos.";
             } else if (timeLeft <= 0) {
-                gameFinished = true;
+                gameState = GameState.FINISHED;
                 endMessage = "Defeat! The work day ended before chaos reached 100%.";
             }
         }
     }
 
+    private void handleStateInput() {
+        boolean startPressed = input.isPressed(KeyCode.ENTER);
+        boolean pausePressed = input.isPressed(KeyCode.ESCAPE) || input.isPressed(KeyCode.P);
+        boolean restartPressed = input.isPressed(KeyCode.R);
+
+        if (startPressed && !startHeld) {
+            if (gameState == GameState.MENU) {
+                startNewRun();
+            } else if (gameState == GameState.FINISHED) {
+                returnToMenu();
+            }
+        }
+
+        if (pausePressed && !pauseHeld) {
+            if (gameState == GameState.PLAYING) {
+                gameState = GameState.PAUSED;
+            } else if (gameState == GameState.PAUSED) {
+                gameState = GameState.PLAYING;
+            }
+        }
+
+        if (restartPressed && !restartHeld) {
+            if (gameState == GameState.PLAYING || gameState == GameState.PAUSED || gameState == GameState.FINISHED) {
+                startNewRun();
+            }
+        }
+
+        startHeld = startPressed;
+        pauseHeld = pausePressed;
+        restartHeld = restartPressed;
+    }
+
+    private void startNewRun() {
+        resetSession();
+        gameState = GameState.PLAYING;
+    }
+
+    private void returnToMenu() {
+        resetSession();
+        gameState = GameState.MENU;
+    }
+
+    private void resetSession() {
+        chaosPercent = 0;
+        timeLeft = DAY_DURATION_SECONDS;
+        managerPenaltyCooldown = 0;
+        interactionHeld = false;
+        endMessage = "";
+        player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
+        chaosEvents.clear();
+
+        for (ChaosInteraction interaction : interactions) {
+            interaction.reset();
+        }
+        for (EmployeeNpc employee : employees) {
+            employee.reset();
+        }
+        manager.reset(managerSpawn.x(), managerSpawn.y());
+    }
+
     private void handleInteractionAttempt() {
         boolean pressed = input.isPressed(KeyCode.E);
-        if (pressed && !interactionHeld && !gameFinished) {
+        if (pressed && !interactionHeld && gameState == GameState.PLAYING) {
             ChaosInteraction nearest = getNearestInteraction();
             if (nearest != null && nearest.canTrigger()) {
                 nearest.trigger();
@@ -144,7 +217,7 @@ public class GameScreen extends StackPane {
     }
 
     private void handleManagerCatch() {
-        if (managerPenaltyCooldown > 0 || gameFinished) {
+        if (managerPenaltyCooldown > 0 || gameState != GameState.PLAYING) {
             return;
         }
 
@@ -181,11 +254,15 @@ public class GameScreen extends StackPane {
         drawHud(gc);
 
         ChaosInteraction nearest = getNearestInteraction();
-        if (!gameFinished && nearest != null) {
+        if (gameState == GameState.PLAYING && nearest != null) {
             drawPrompt(gc, nearest);
         }
 
-        if (gameFinished) {
+        if (gameState == GameState.MENU) {
+            drawMenuOverlay(gc);
+        } else if (gameState == GameState.PAUSED) {
+            drawPauseOverlay(gc);
+        } else if (gameState == GameState.FINISHED) {
             drawGameOverOverlay(gc);
         }
     }
@@ -298,6 +375,7 @@ public class GameScreen extends StackPane {
         gc.fillText("Controls: WASD / arrows to move, E to cause trouble", 842, 48);
         gc.fillText("Current MVP actions: keyboard nap, mug push, Wi-Fi sabotage", 842, 76);
         gc.fillText("Manager: " + manager.statusText(), 842, 104);
+        gc.fillText("State: " + gameState.name(), 842, 126);
     }
 
     private void drawPrompt(GraphicsContext gc, ChaosInteraction interaction) {
@@ -327,7 +405,48 @@ public class GameScreen extends StackPane {
 
         gc.setFont(Font.font("Verdana", 20));
         gc.fillText(String.format("Final chaos level: %.0f%%", chaosPercent), WIDTH / 2.0, 350);
-        gc.fillText("Restart is still app relaunch for now.", WIDTH / 2.0, 390);
+        gc.fillText("[R] Restart run    [Enter] Return to menu", WIDTH / 2.0, 390);
+        gc.setTextAlign(TextAlignment.LEFT);
+    }
+
+    private void drawMenuOverlay(GraphicsContext gc) {
+        gc.setFill(Color.rgb(10, 15, 25, 0.55));
+        gc.fillRect(0, 0, WIDTH, HEIGHT);
+
+        gc.setFill(Color.rgb(255, 248, 235, 0.96));
+        gc.fillRoundRect(210, 150, 860, 360, 32, 32);
+
+        gc.setFill(Color.web("#111827"));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 36));
+        gc.fillText("Office Cat: Chaos Manager", WIDTH / 2.0, 235);
+
+        gc.setFont(Font.font("Verdana", 22));
+        gc.fillText("Turn a productive office into a furry disaster zone.", WIDTH / 2.0, 285);
+
+        gc.setFont(Font.font("Verdana", 18));
+        gc.fillText("Reach 100% chaos before the work day ends.", WIDTH / 2.0, 338);
+        gc.fillText("Avoid the manager, trigger distractions, and keep moving.", WIDTH / 2.0, 370);
+        gc.fillText("[Enter] Start run", WIDTH / 2.0, 430);
+        gc.fillText("[WASD / Arrows] Move    [E] Interact    [Esc / P] Pause", WIDTH / 2.0, 468);
+        gc.setTextAlign(TextAlignment.LEFT);
+    }
+
+    private void drawPauseOverlay(GraphicsContext gc) {
+        gc.setFill(Color.rgb(0, 0, 0, 0.42));
+        gc.fillRect(0, 0, WIDTH, HEIGHT);
+
+        gc.setFill(Color.rgb(255, 248, 235, 0.95));
+        gc.fillRoundRect(320, 220, 640, 200, 28, 28);
+
+        gc.setFill(Color.web("#111827"));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 30));
+        gc.fillText("Paused", WIDTH / 2.0, 290);
+
+        gc.setFont(Font.font("Verdana", 20));
+        gc.fillText("[Esc / P] Resume", WIDTH / 2.0, 338);
+        gc.fillText("[R] Restart run", WIDTH / 2.0, 372);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 

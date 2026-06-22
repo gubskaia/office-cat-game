@@ -38,6 +38,17 @@ public class EmployeeNpc {
         this.color = color;
     }
 
+    public void reset() {
+        x = homeX;
+        y = homeY;
+        state = State.WORKING;
+        reactionText = "Focused";
+        reactionTimer = 0;
+        targetX = homeX;
+        targetY = homeY;
+        productivity = 1.0;
+    }
+
     public void update(double deltaSeconds, PlayerCat player, ChaosEvent strongestEvent) {
         if (strongestEvent != null) {
             reactToEvent(strongestEvent);
