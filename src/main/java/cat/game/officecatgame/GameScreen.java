@@ -37,6 +37,9 @@ public class GameScreen extends StackPane {
     private static final double MEOW_CHAOS_GAIN = 4.0;
     private static final double MEOW_EVENT_RADIUS = 210.0;
     private static final double MEOW_EVENT_SEVERITY = 4.8;
+    private static final double DANGER_ZONE_DURATION_SECONDS = 8.0;
+    private static final double DANGER_ZONE_RADIUS = 92.0;
+    private static final double DANGER_ZONE_PENALTY_INTERVAL = 1.25;
     private static final double SHAKE_DECAY_PER_SECOND = 3.4;
     private static final Point PLAYER_RESPAWN = new Point(90, 110);
     private static final double PLAYER_DRAW_SIZE = 78;
@@ -53,6 +56,7 @@ public class GameScreen extends StackPane {
     private final List<ChaosInteraction> interactions = new ArrayList<>();
     private final List<HideSpot> hideSpots = new ArrayList<>();
     private final List<ChaosEvent> chaosEvents = new ArrayList<>();
+    private final List<DangerZone> dangerZones = new ArrayList<>();
     private final List<FloatingText> floatingTexts = new ArrayList<>();
     private final List<IncidentFeedEntry> incidentFeed = new ArrayList<>();
     private final List<ChaosObjective> objectiveDeck = List.of(
@@ -111,6 +115,8 @@ public class GameScreen extends StackPane {
     private double managerPenaltyCooldown;
     private double comboTimer;
     private double meowCooldownRemaining;
+    private double dangerZoneCreateCooldown;
+    private double dangerExposureTimer;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
@@ -168,6 +174,7 @@ public class GameScreen extends StackPane {
             managerPenaltyCooldown = Math.max(0, managerPenaltyCooldown - deltaSeconds);
             comboTimer = Math.max(0, comboTimer - deltaSeconds);
             meowCooldownRemaining = Math.max(0, meowCooldownRemaining - deltaSeconds);
+            dangerZoneCreateCooldown = Math.max(0, dangerZoneCreateCooldown - deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
             shakePhase += deltaSeconds * 34;
             if (comboTimer == 0) {
@@ -178,9 +185,11 @@ public class GameScreen extends StackPane {
             player.update(input, deltaSeconds, walls);
             handleInteractionAttempt();
             updateChaosEvents(deltaSeconds);
+            updateDangerZones(deltaSeconds);
             updateFloatingTexts(deltaSeconds);
             updateIncidentFeed(deltaSeconds);
             updateNpcs(deltaSeconds);
+            applyDangerZonePressure(deltaSeconds);
             handleManagerCatch();
 
             if (chaosPercent >= 100) {
@@ -287,6 +296,8 @@ public class GameScreen extends StackPane {
         managerPenaltyCooldown = 0;
         comboTimer = 0;
         meowCooldownRemaining = 0;
+        dangerZoneCreateCooldown = 0;
+        dangerExposureTimer = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -301,6 +312,7 @@ public class GameScreen extends StackPane {
         player.setHidden(false);
         activeHideSpot = null;
         chaosEvents.clear();
+        dangerZones.clear();
         floatingTexts.clear();
         incidentFeed.clear();
 
@@ -442,6 +454,11 @@ public class GameScreen extends StackPane {
         floatingTexts.removeIf(text -> !text.isAlive());
     }
 
+    private void updateDangerZones(double deltaSeconds) {
+        dangerZones.forEach(zone -> zone.update(deltaSeconds));
+        dangerZones.removeIf(zone -> !zone.isActive());
+    }
+
     private void updateIncidentFeed(double deltaSeconds) {
         incidentFeed.forEach(entry -> entry.update(deltaSeconds));
         incidentFeed.removeIf(entry -> !entry.isAlive());
@@ -451,7 +468,58 @@ public class GameScreen extends StackPane {
         for (EmployeeNpc employee : employees) {
             employee.update(deltaSeconds, player, strongestEventNear(employee.x(), employee.y(), 165));
         }
-        manager.update(deltaSeconds, player, strongestEventNear(manager.x(), manager.y(), 260), currentChaosPressure());
+        ChaosEvent managerEvent = strongestEventNear(manager.x(), manager.y(), 260);
+        manager.update(deltaSeconds, player, managerEvent, currentChaosPressure());
+
+        if (managerEvent != null
+                && manager.mode() == ManagerNpc.Mode.INVESTIGATING
+                && manager.distanceTo(managerEvent.x(), managerEvent.y()) < 34
+                && dangerZoneCreateCooldown <= 0) {
+            dangerZoneCreateCooldown = 2.2;
+            dangerZones.add(new DangerZone(
+                    managerEvent.x(),
+                    managerEvent.y(),
+                    DANGER_ZONE_RADIUS,
+                    DANGER_ZONE_DURATION_SECONDS
+            ));
+            addIncident("Manager marked a danger zone");
+            floatingTexts.add(new FloatingText(
+                    "Risk zone!",
+                    managerEvent.x(),
+                    managerEvent.y() - 18,
+                    Color.web("#fca5a5"),
+                    1.1
+            ));
+        }
+    }
+
+    private void applyDangerZonePressure(double deltaSeconds) {
+        if (player.isHidden()) {
+            dangerExposureTimer = 0;
+            return;
+        }
+
+        boolean insideDangerZone = dangerZones.stream()
+                .anyMatch(zone -> zone.contains(player.centerX(), player.centerY()));
+
+        if (!insideDangerZone) {
+            dangerExposureTimer = 0;
+            return;
+        }
+
+        dangerExposureTimer += deltaSeconds;
+        if (dangerExposureTimer >= DANGER_ZONE_PENALTY_INTERVAL) {
+            dangerExposureTimer = 0;
+            chaosPercent = Math.max(0, chaosPercent - 2);
+            timeLeft = Math.max(0, timeLeft - 2);
+            floatingTexts.add(new FloatingText(
+                    "Too exposed!",
+                    player.centerX(),
+                    player.y() - 10,
+                    Color.web("#fda4af"),
+                    0.9
+            ));
+        }
     }
 
     private double currentChaosPressure() {
@@ -540,6 +608,7 @@ public class GameScreen extends StackPane {
         gc.save();
         applyCameraShake(gc);
         drawOffice(gc);
+        drawDangerZones(gc);
         drawChaosEvents(gc);
         drawInteractions(gc);
         drawHideSpots(gc);
@@ -648,6 +717,26 @@ public class GameScreen extends StackPane {
         }
     }
 
+    private void drawDangerZones(GraphicsContext gc) {
+        for (DangerZone zone : dangerZones) {
+            gc.setFill(Color.rgb(239, 68, 68, 0.12));
+            gc.fillOval(
+                    zone.x() - zone.radius(),
+                    zone.y() - zone.radius(),
+                    zone.radius() * 2,
+                    zone.radius() * 2
+            );
+            gc.setStroke(Color.rgb(248, 113, 113, Math.min(0.5, zone.timeLeft() / DANGER_ZONE_DURATION_SECONDS)));
+            gc.setLineWidth(3);
+            gc.strokeOval(
+                    zone.x() - zone.radius(),
+                    zone.y() - zone.radius(),
+                    zone.radius() * 2,
+                    zone.radius() * 2
+            );
+        }
+    }
+
     private void drawNpcs(GraphicsContext gc) {
         for (EmployeeNpc employee : employees) {
             drawCenteredSprite(gc, employeeSprite(employee), employee.x(), employee.y(), NPC_DRAW_SIZE);
@@ -674,6 +763,9 @@ public class GameScreen extends StackPane {
     }
 
     private void drawHud(GraphicsContext gc) {
+        boolean insideDangerZone = dangerZones.stream()
+                .anyMatch(zone -> zone.contains(player.centerX(), player.centerY()));
+
         gc.setFill(Color.rgb(17, 24, 39, 0.88));
         gc.fillRoundRect(20, 588, 338, 112, 18, 18);
 
@@ -690,9 +782,11 @@ public class GameScreen extends StackPane {
         gc.fillText(player.isDashReady()
                 ? "Dash Ready [Shift]"
                 : String.format("Dash %.1fs", player.dashCooldownRemaining()), 196, 678);
-        gc.fillText(meowCooldownRemaining <= 0
+        gc.fillText(insideDangerZone
+                ? "Danger Zone Active"
+                : (meowCooldownRemaining <= 0
                 ? "Meow Ready [Space]"
-                : String.format("Meow %.1fs", meowCooldownRemaining), 36, 696);
+                : String.format("Meow %.1fs", meowCooldownRemaining)), 36, 696);
 
         gc.setFill(Color.rgb(255, 255, 255, 0.2));
         gc.fillRoundRect(36, 548, 322, 18, 10, 10);
