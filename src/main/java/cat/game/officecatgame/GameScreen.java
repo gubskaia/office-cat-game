@@ -70,6 +70,7 @@ public class GameScreen extends StackPane {
     private final Point managerSpawn = new Point(780, 180);
     private final Image catIdleSprite = SpriteLoader.loadSingle("/assets/sprites/cat/cat_idle.png");
     private final Image catHideSprite = SpriteLoader.loadSingle("/assets/sprites/cat/cat_hide.png");
+    private final Image catPounceSprite = SpriteLoader.loadSingle("/assets/sprites/cat/cat_pounce.png");
     private final List<Image> catWalkFrames = SpriteLoader.loadStrip("/assets/sprites/cat/cat_walk.png");
     private final Image employeeIdleSprite = SpriteLoader.loadSingle("/assets/sprites/employees/employee_idle.png");
     private final List<Image> employeeWalkFrames = SpriteLoader.loadStrip("/assets/sprites/employees/employee_walk.png");
@@ -113,6 +114,7 @@ public class GameScreen extends StackPane {
     private ChaosObjective currentObjective;
     private boolean interactionHeld;
     private HideSpot activeHideSpot;
+    private boolean dashHeld;
     private boolean startHeld;
     private boolean pauseHeld;
     private boolean restartHeld;
@@ -164,6 +166,7 @@ public class GameScreen extends StackPane {
             if (comboTimer == 0) {
                 comboCount = 0;
             }
+            handleDashInput();
             player.update(input, deltaSeconds, walls);
             handleInteractionAttempt();
             updateChaosEvents(deltaSeconds);
@@ -214,6 +217,24 @@ public class GameScreen extends StackPane {
         restartHeld = restartPressed;
     }
 
+    private void handleDashInput() {
+        boolean dashPressed = input.isPressed(KeyCode.SHIFT);
+
+        if (dashPressed && !dashHeld && gameState == GameState.PLAYING && player.tryStartDash(input)) {
+            addIncident("Cat dash burst");
+            addShake(2.5);
+            floatingTexts.add(new FloatingText(
+                    "Dash!",
+                    player.centerX(),
+                    player.y() - 6,
+                    Color.web("#7dd3fc"),
+                    0.9
+            ));
+        }
+
+        dashHeld = dashPressed;
+    }
+
     private void startNewRun() {
         resetSession();
         gameState = GameState.PLAYING;
@@ -236,6 +257,7 @@ public class GameScreen extends StackPane {
         objectiveIndex = 0;
         currentObjective = nextObjective();
         interactionHeld = false;
+        dashHeld = false;
         endMessage = "";
         player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
         player.setHidden(false);
@@ -627,6 +649,9 @@ public class GameScreen extends StackPane {
         gc.fillText(comboCount > 1 && comboTimer > 0
                 ? String.format("Combo x%d %.1fs", comboCount, comboTimer)
                 : "Chain actions for combo", 36, 678);
+        gc.fillText(player.isDashReady()
+                ? "Dash Ready [Shift]"
+                : String.format("Dash %.1fs", player.dashCooldownRemaining()), 196, 678);
 
         gc.setFill(Color.rgb(255, 255, 255, 0.2));
         gc.fillRoundRect(36, 548, 322, 18, 10, 10);
@@ -644,7 +669,8 @@ public class GameScreen extends StackPane {
         gc.fillText("Manager", 1038, 614);
         gc.fillText(manager.statusText(), 1038, 636);
         gc.fillText(String.format("Pressure %.0f%%", currentChaosPressure() * 50), 1038, 658);
-        gc.fillText("WASD move  E interact", 1038, 680);
+        gc.fillText("WASD move  E interact", 1038, 676);
+        gc.fillText("Shift dash", 1038, 692);
 
         gc.setFill(Color.rgb(17, 24, 39, 0.9));
         gc.fillRoundRect(378, 620, 340, 80, 18, 18);
@@ -753,8 +779,9 @@ public class GameScreen extends StackPane {
         gc.setFont(Font.font("Verdana", 14));
         gc.fillText("Reach 100% chaos before the work day ends.", WIDTH / 2.0, 305);
         gc.fillText("Avoid the manager and chain mischief for combos.", WIDTH / 2.0, 330);
+        gc.fillText("Use Shift to dash out of trouble.", WIDTH / 2.0, 352);
         gc.fillText("[Enter] Start run", WIDTH / 2.0, 372);
-        gc.fillText("WASD move   E interact   Esc pause", WIDTH / 2.0, 394);
+        gc.fillText("WASD move   E interact   Shift dash   Esc pause", WIDTH / 2.0, 394);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
@@ -901,6 +928,9 @@ public class GameScreen extends StackPane {
     }
 
     private Image currentCatSprite() {
+        if (player.isDashing()) {
+            return catPounceSprite;
+        }
         if (player.isMoving() && !catWalkFrames.isEmpty()) {
             return frameAt(catWalkFrames, 7.5);
         }

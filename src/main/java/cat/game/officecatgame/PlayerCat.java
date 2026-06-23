@@ -6,6 +6,9 @@ import java.util.List;
 
 public class PlayerCat {
     private static final double SPEED = 260.0;
+    private static final double DASH_MULTIPLIER = 2.7;
+    private static final double DASH_DURATION_SECONDS = 0.16;
+    private static final double DASH_COOLDOWN_SECONDS = 3.5;
 
     private double x;
     private double y;
@@ -13,6 +16,12 @@ public class PlayerCat {
     private final double height = 38;
     private boolean hidden;
     private boolean moving;
+    private double dashTimeRemaining;
+    private double dashCooldownRemaining;
+    private double dashDirectionX;
+    private double dashDirectionY = 1;
+    private double facingX;
+    private double facingY = 1;
 
     public PlayerCat(double x, double y) {
         this.x = x;
@@ -20,8 +29,11 @@ public class PlayerCat {
     }
 
     public void update(InputState input, double deltaSeconds, List<Rect> walls) {
+        dashCooldownRemaining = Math.max(0, dashCooldownRemaining - deltaSeconds);
+
         if (hidden) {
             moving = false;
+            dashTimeRemaining = 0;
             return;
         }
 
@@ -42,11 +54,22 @@ public class PlayerCat {
         }
 
         double length = Math.hypot(dx, dy);
-        if (length > 0) {
-            dx = (dx / length) * SPEED * deltaSeconds;
-            dy = (dy / length) * SPEED * deltaSeconds;
+        if (dashTimeRemaining > 0) {
+            dashTimeRemaining = Math.max(0, dashTimeRemaining - deltaSeconds);
+            dx = dashDirectionX * SPEED * DASH_MULTIPLIER * deltaSeconds;
+            dy = dashDirectionY * SPEED * DASH_MULTIPLIER * deltaSeconds;
+            moving = true;
+        } else {
+            if (length > 0) {
+                dashDirectionX = dx / length;
+                dashDirectionY = dy / length;
+                facingX = dashDirectionX;
+                facingY = dashDirectionY;
+                dx = dashDirectionX * SPEED * deltaSeconds;
+                dy = dashDirectionY * SPEED * deltaSeconds;
+            }
+            moving = length > 0;
         }
-        moving = length > 0;
 
         moveX(dx, walls);
         moveY(dy, walls);
@@ -135,5 +158,59 @@ public class PlayerCat {
 
     public boolean isMoving() {
         return moving;
+    }
+
+    public boolean tryStartDash(InputState input) {
+        if (hidden || dashCooldownRemaining > 0 || dashTimeRemaining > 0) {
+            return false;
+        }
+
+        double inputX = 0;
+        double inputY = 0;
+        if (input.isPressed(KeyCode.A) || input.isPressed(KeyCode.LEFT)) {
+            inputX -= 1;
+        }
+        if (input.isPressed(KeyCode.D) || input.isPressed(KeyCode.RIGHT)) {
+            inputX += 1;
+        }
+        if (input.isPressed(KeyCode.W) || input.isPressed(KeyCode.UP)) {
+            inputY -= 1;
+        }
+        if (input.isPressed(KeyCode.S) || input.isPressed(KeyCode.DOWN)) {
+            inputY += 1;
+        }
+
+        double length = Math.hypot(inputX, inputY);
+        if (length > 0) {
+            dashDirectionX = inputX / length;
+            dashDirectionY = inputY / length;
+            facingX = dashDirectionX;
+            facingY = dashDirectionY;
+        } else {
+            double facingLength = Math.hypot(facingX, facingY);
+            if (facingLength == 0) {
+                dashDirectionX = 0;
+                dashDirectionY = 1;
+            } else {
+                dashDirectionX = facingX / facingLength;
+                dashDirectionY = facingY / facingLength;
+            }
+        }
+
+        dashTimeRemaining = DASH_DURATION_SECONDS;
+        dashCooldownRemaining = DASH_COOLDOWN_SECONDS;
+        return true;
+    }
+
+    public boolean isDashing() {
+        return dashTimeRemaining > 0;
+    }
+
+    public boolean isDashReady() {
+        return dashCooldownRemaining <= 0 && dashTimeRemaining <= 0 && !hidden;
+    }
+
+    public double dashCooldownRemaining() {
+        return dashCooldownRemaining;
     }
 }
