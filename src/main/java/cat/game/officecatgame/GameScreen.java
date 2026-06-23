@@ -6,6 +6,7 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -36,6 +37,10 @@ public class GameScreen extends StackPane {
     private static final Point PLAYER_RESPAWN = new Point(90, 110);
     private static final double PLAYER_DRAW_SIZE = 78;
     private static final double NPC_DRAW_SIZE = 72;
+    private static final double PROP_SMALL = 54;
+    private static final double PROP_MEDIUM = 82;
+    private static final double PROP_LARGE = 190;
+    private static final double PROP_XL = 250;
 
     private final Canvas canvas = new Canvas(WIDTH, HEIGHT);
     private final InputState input = new InputState();
@@ -74,6 +79,24 @@ public class GameScreen extends StackPane {
     private final List<Image> managerAlertFrames = SpriteLoader.loadStrip("/assets/sprites/manager/manager_alert.png");
     private final List<Image> managerWalkFrames = SpriteLoader.loadStrip("/assets/sprites/manager/manager_walk.png");
     private final List<Image> managerChaseFrames = SpriteLoader.loadStrip("/assets/sprites/manager/manager_chase.png");
+    private final Image officeTileset = SpriteLoader.loadRaw("/assets/tiles/office/office_tileset.png");
+    private final Image openSpaceFloorTile = cropImage(officeTileset, 28, 862, 94, 94);
+    private final Image meetingFloorTile = cropImage(officeTileset, 363, 862, 94, 94);
+    private final Image kitchenFloorTile = cropImage(officeTileset, 586, 862, 94, 94);
+    private final Image directorFloorTile = cropImage(officeTileset, 698, 862, 94, 94);
+    private final Image deskSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/desk.png");
+    private final Image keyboardSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/keyboard.png");
+    private final Image mugSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/mug.png");
+    private final Image mugSpilledSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/mug_spilled.png");
+    private final Image wifiRouterSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/wifi_router.png");
+    private final Image boxSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/box.png");
+    private final Image papersSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/papers.png");
+    private final Image papersScatteredSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/papers_scattered.png");
+    private final Image meetingTableSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/meeting_table.png");
+    private final Image chairSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/chair.png");
+    private final Image cabinetSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/cabinet.png");
+    private final Image plantSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/props/plant.png");
+    private final Image sleepingKeyboardSprite = SpriteLoader.loadMaskedSingle("/assets/sprites/cat/cat_sleep_keyboard.png");
 
     private ManagerNpc manager = new ManagerNpc(managerSpawn.x(), managerSpawn.y(), managerPatrolPath);
 
@@ -501,14 +524,10 @@ public class GameScreen extends StackPane {
         gc.setFill(Color.web("#f8f3e8"));
         gc.fillRect(0, 0, WIDTH, HEIGHT);
 
-        gc.setFill(Color.web("#e8eef4"));
-        gc.fillRect(40, 70, 520, 300);
-        gc.setFill(Color.web("#f2e7ff"));
-        gc.fillRect(590, 70, 300, 220);
-        gc.setFill(Color.web("#fff1d6"));
-        gc.fillRect(920, 70, 300, 220);
-        gc.setFill(Color.web("#ffe1d6"));
-        gc.fillRect(780, 330, 440, 260);
+        fillAreaWithTile(gc, openSpaceFloorTile, 40, 70, 520, 300, 64);
+        fillAreaWithTile(gc, meetingFloorTile, 590, 70, 300, 220, 64);
+        fillAreaWithTile(gc, kitchenFloorTile, 920, 70, 300, 220, 64);
+        fillAreaWithTile(gc, directorFloorTile, 780, 330, 440, 260, 64);
 
         gc.setStroke(Color.web("#4f5d75"));
         gc.setLineWidth(4);
@@ -524,30 +543,35 @@ public class GameScreen extends StackPane {
         gc.fillText("Kitchen", 940, 100);
         gc.fillText("Director's Office", 800, 360);
 
-        gc.setFill(Color.web("#8b6f47"));
+        gc.setStroke(Color.rgb(59, 73, 97, 0.4));
+        gc.setLineWidth(2);
         for (Rect wall : walls) {
-            gc.fillRect(wall.x(), wall.y(), wall.width(), wall.height());
+            gc.strokeRoundRect(wall.x(), wall.y(), wall.width(), wall.height(), 12, 12);
         }
+
+        drawFurniture(gc);
     }
 
     private void drawInteractions(GraphicsContext gc) {
         for (ChaosInteraction interaction : interactions) {
-            gc.setFill(interaction.color());
-            gc.fillRoundRect(interaction.x() - 16, interaction.y() - 16, 32, 32, 10, 10);
+            Image sprite = interactionSprite(interaction);
+            if (sprite != null) {
+                drawCenteredSprite(gc, sprite, interaction.x(), interaction.y(), interactionSize(interaction));
+            } else {
+                gc.setFill(interaction.color());
+                gc.fillRoundRect(interaction.x() - 16, interaction.y() - 16, 32, 32, 10, 10);
+            }
 
             if (!interaction.canTrigger()) {
-                gc.setFill(Color.rgb(30, 30, 30, 0.35));
-                gc.fillRoundRect(interaction.x() - 16, interaction.y() - 16, 32, 32, 10, 10);
+                gc.setFill(Color.rgb(30, 30, 30, 0.22));
+                gc.fillOval(interaction.x() - 30, interaction.y() - 30, 60, 60);
             }
         }
     }
 
     private void drawHideSpots(GraphicsContext gc) {
         for (HideSpot hideSpot : hideSpots) {
-            gc.setFill(Color.web("#c08457"));
-            gc.fillRoundRect(hideSpot.x() - 20, hideSpot.y() - 20, 40, 40, 8, 8);
-            gc.setStroke(Color.web("#7c5a36"));
-            gc.strokeRoundRect(hideSpot.x() - 20, hideSpot.y() - 20, 40, 40, 8, 8);
+            drawCenteredSprite(gc, boxSprite, hideSpot.x(), hideSpot.y(), PROP_MEDIUM);
         }
     }
 
@@ -767,6 +791,26 @@ public class GameScreen extends StackPane {
         gc.setTextBaseline(VPos.BASELINE);
     }
 
+    private void drawFurniture(GraphicsContext gc) {
+        drawCenteredSprite(gc, deskSprite, 360, 157, PROP_XL);
+        drawCenteredSprite(gc, deskSprite, 360, 252, PROP_XL);
+        drawCenteredSprite(gc, meetingTableSprite, 735, 180, 290);
+        drawCenteredSprite(gc, cabinetSprite, 1040, 150, PROP_LARGE);
+        drawCenteredSprite(gc, deskSprite, 1045, 430, PROP_XL);
+        drawCenteredSprite(gc, cabinetSprite, 1095, 520, PROP_LARGE);
+        drawCenteredSprite(gc, cabinetSprite, 250, 470, PROP_XL);
+        drawCenteredSprite(gc, cabinetSprite, 260, 578, PROP_LARGE);
+        drawCenteredSprite(gc, cabinetSprite, 595, 578, PROP_MEDIUM);
+
+        drawCenteredSprite(gc, chairSprite, 170, 175, PROP_SMALL);
+        drawCenteredSprite(gc, chairSprite, 170, 272, PROP_SMALL);
+        drawCenteredSprite(gc, chairSprite, 980, 525, PROP_SMALL);
+
+        drawCenteredSprite(gc, plantSprite, 530, 330, PROP_SMALL);
+        drawCenteredSprite(gc, plantSprite, 1210, 270, PROP_SMALL);
+        drawCenteredSprite(gc, plantSprite, 795, 575, PROP_SMALL);
+    }
+
     private void buildOfficeLayout() {
         walls.add(new Rect(250, 140, 220, 34));
         walls.add(new Rect(250, 235, 220, 34));
@@ -883,9 +927,42 @@ public class GameScreen extends StackPane {
         };
     }
 
+    private Image interactionSprite(ChaosInteraction interaction) {
+        return switch (interaction.id()) {
+            case "keyboard" -> interaction.canTrigger() ? keyboardSprite : sleepingKeyboardSprite;
+            case "mug" -> interaction.canTrigger() ? mugSprite : mugSpilledSprite;
+            case "wifi" -> wifiRouterSprite;
+            case "papers" -> interaction.canTrigger() ? papersSprite : papersScatteredSprite;
+            case "meeting" -> null;
+            default -> null;
+        };
+    }
+
+    private double interactionSize(ChaosInteraction interaction) {
+        return switch (interaction.id()) {
+            case "keyboard" -> 94;
+            case "mug", "papers", "wifi" -> PROP_SMALL;
+            default -> PROP_SMALL;
+        };
+    }
+
     private Image frameAt(List<Image> frames, double framesPerSecond) {
         int index = (int) (animationClock * framesPerSecond) % frames.size();
         return frames.get(index);
+    }
+
+    private Image cropImage(Image image, int x, int y, int width, int height) {
+        return new WritableImage(image.getPixelReader(), x, y, width, height);
+    }
+
+    private void fillAreaWithTile(GraphicsContext gc, Image tile, double x, double y, double width, double height, double tileDrawSize) {
+        for (double drawY = y; drawY < y + height; drawY += tileDrawSize) {
+            for (double drawX = x; drawX < x + width; drawX += tileDrawSize) {
+                double actualWidth = Math.min(tileDrawSize, x + width - drawX);
+                double actualHeight = Math.min(tileDrawSize, y + height - drawY);
+                gc.drawImage(tile, drawX, drawY, actualWidth, actualHeight);
+            }
+        }
     }
 
     private void drawCenteredSprite(GraphicsContext gc, Image sprite, double centerX, double centerY, double maxSize) {

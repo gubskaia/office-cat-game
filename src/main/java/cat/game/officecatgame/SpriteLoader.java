@@ -2,20 +2,27 @@ package cat.game.officecatgame;
 
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
+import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 
 import java.io.InputStream;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class SpriteLoader {
     private static final int ALPHA_THRESHOLD = 12;
+    private static final int MASK_TOLERANCE = 24;
 
     private SpriteLoader() {
     }
 
     public static Image loadSingle(String resourcePath) {
         return cropOpaqueBounds(loadRaw(resourcePath));
+    }
+
+    public static Image loadMaskedSingle(String resourcePath) {
+        return cropOpaqueBounds(removeBackground(loadRaw(resourcePath), MASK_TOLERANCE));
     }
 
     public static List<Image> loadStrip(String resourcePath) {
@@ -27,12 +34,103 @@ public final class SpriteLoader {
         return frames;
     }
 
-    private static Image loadRaw(String resourcePath) {
+    public static Image loadRaw(String resourcePath) {
         InputStream stream = SpriteLoader.class.getResourceAsStream(resourcePath);
         if (stream == null) {
             throw new IllegalArgumentException("Missing resource: " + resourcePath);
         }
         return new Image(stream);
+    }
+
+    private static WritableImage removeBackground(Image source, int tolerance) {
+        int width = (int) source.getWidth();
+        int height = (int) source.getHeight();
+        PixelReader reader = source.getPixelReader();
+        WritableImage output = new WritableImage(width, height);
+        PixelWriter writer = output.getPixelWriter();
+
+        int[] cornerColors = {
+                reader.getArgb(0, 0),
+                reader.getArgb(width - 1, 0),
+                reader.getArgb(0, height - 1),
+                reader.getArgb(width - 1, height - 1)
+        };
+
+        boolean[] visited = new boolean[width * height];
+        boolean[] transparent = new boolean[width * height];
+        ArrayDeque<Integer> queue = new ArrayDeque<>();
+
+        push(0, 0, width, visited, queue);
+        push(width - 1, 0, width, visited, queue);
+        push(0, height - 1, width, visited, queue);
+        push(width - 1, height - 1, width, visited, queue);
+
+        while (!queue.isEmpty()) {
+            int index = queue.removeFirst();
+            int x = index % width;
+            int y = index / width;
+            int argb = reader.getArgb(x, y);
+
+            if (!isBackground(argb, cornerColors, tolerance)) {
+                continue;
+            }
+
+            transparent[index] = true;
+
+            if (x > 0) {
+                push(x - 1, y, width, visited, queue);
+            }
+            if (x + 1 < width) {
+                push(x + 1, y, width, visited, queue);
+            }
+            if (y > 0) {
+                push(x, y - 1, width, visited, queue);
+            }
+            if (y + 1 < height) {
+                push(x, y + 1, width, visited, queue);
+            }
+        }
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int index = y * width + x;
+                int argb = reader.getArgb(x, y);
+                writer.setArgb(x, y, transparent[index] ? (argb & 0x00FFFFFF) : argb);
+            }
+        }
+
+        return output;
+    }
+
+    private static void push(int x, int y, int width, boolean[] visited, ArrayDeque<Integer> queue) {
+        int index = y * width + x;
+        if (!visited[index]) {
+            visited[index] = true;
+            queue.add(index);
+        }
+    }
+
+    private static boolean isBackground(int argb, int[] cornerColors, int tolerance) {
+        int alpha = (argb >>> 24) & 0xFF;
+        if (alpha < ALPHA_THRESHOLD) {
+            return true;
+        }
+
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+
+        for (int corner : cornerColors) {
+            int cornerRed = (corner >>> 16) & 0xFF;
+            int cornerGreen = (corner >>> 8) & 0xFF;
+            int cornerBlue = corner & 0xFF;
+            int difference = Math.abs(red - cornerRed) + Math.abs(green - cornerGreen) + Math.abs(blue - cornerBlue);
+            if (difference <= tolerance) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static Image cropOpaqueBounds(Image image) {
