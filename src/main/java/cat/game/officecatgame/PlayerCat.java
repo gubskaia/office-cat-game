@@ -12,6 +12,7 @@ public class PlayerCat {
     private final double width = 38;
     private final double height = 38;
     private boolean hidden;
+    private boolean moving;
 
     public PlayerCat(double x, double y) {
         this.x = x;
@@ -20,6 +21,7 @@ public class PlayerCat {
 
     public void update(InputState input, double deltaSeconds, List<Rect> walls) {
         if (hidden) {
+            moving = false;
             return;
         }
 
@@ -44,6 +46,7 @@ public class PlayerCat {
             dx = (dx / length) * SPEED * deltaSeconds;
             dy = (dy / length) * SPEED * deltaSeconds;
         }
+        moving = length > 0;
 
         moveX(dx, walls);
         moveY(dy, walls);
@@ -125,5 +128,12 @@ public class PlayerCat {
 
     public void setHidden(boolean hidden) {
         this.hidden = hidden;
+        if (hidden) {
+            moving = false;
+        }
+    }
+
+    public boolean isMoving() {
+        return moving;
     }
 }

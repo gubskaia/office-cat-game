@@ -5,6 +5,7 @@ import javafx.geometry.VPos;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -33,6 +34,8 @@ public class GameScreen extends StackPane {
     private static final double COMBO_WINDOW_SECONDS = 6.0;
     private static final double SHAKE_DECAY_PER_SECOND = 3.4;
     private static final Point PLAYER_RESPAWN = new Point(90, 110);
+    private static final double PLAYER_DRAW_SIZE = 78;
+    private static final double NPC_DRAW_SIZE = 72;
 
     private final Canvas canvas = new Canvas(WIDTH, HEIGHT);
     private final InputState input = new InputState();
@@ -60,6 +63,17 @@ public class GameScreen extends StackPane {
     );
 
     private final Point managerSpawn = new Point(780, 180);
+    private final Image catIdleSprite = SpriteLoader.loadSingle("/assets/sprites/cat/cat_idle.png");
+    private final Image catHideSprite = SpriteLoader.loadSingle("/assets/sprites/cat/cat_hide.png");
+    private final List<Image> catWalkFrames = SpriteLoader.loadStrip("/assets/sprites/cat/cat_walk.png");
+    private final Image employeeIdleSprite = SpriteLoader.loadSingle("/assets/sprites/employees/employee_idle.png");
+    private final List<Image> employeeWalkFrames = SpriteLoader.loadStrip("/assets/sprites/employees/employee_walk.png");
+    private final List<Image> employeeReactFrames = SpriteLoader.loadStrip("/assets/sprites/employees/employee_react.png");
+    private final List<Image> employeePanicFrames = SpriteLoader.loadStrip("/assets/sprites/employees/employee_panic.png");
+    private final Image managerIdleSprite = SpriteLoader.loadSingle("/assets/sprites/manager/manager_idle.png");
+    private final List<Image> managerAlertFrames = SpriteLoader.loadStrip("/assets/sprites/manager/manager_alert.png");
+    private final List<Image> managerWalkFrames = SpriteLoader.loadStrip("/assets/sprites/manager/manager_walk.png");
+    private final List<Image> managerChaseFrames = SpriteLoader.loadStrip("/assets/sprites/manager/manager_chase.png");
 
     private ManagerNpc manager = new ManagerNpc(managerSpawn.x(), managerSpawn.y(), managerPatrolPath);
 
@@ -68,6 +82,7 @@ public class GameScreen extends StackPane {
     private double timeLeft = DAY_DURATION_SECONDS;
     private double managerPenaltyCooldown;
     private double comboTimer;
+    private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
     private int comboCount;
@@ -117,6 +132,7 @@ public class GameScreen extends StackPane {
         handleStateInput();
 
         if (gameState == GameState.PLAYING) {
+            animationClock += deltaSeconds;
             timeLeft = Math.max(0, timeLeft - deltaSeconds);
             managerPenaltyCooldown = Math.max(0, managerPenaltyCooldown - deltaSeconds);
             comboTimer = Math.max(0, comboTimer - deltaSeconds);
@@ -191,6 +207,7 @@ public class GameScreen extends StackPane {
         managerPenaltyCooldown = 0;
         comboTimer = 0;
         comboCount = 0;
+        animationClock = 0;
         shakeIntensity = 0;
         shakePhase = 0;
         objectiveIndex = 0;
@@ -436,6 +453,7 @@ public class GameScreen extends StackPane {
 
     private void render() {
         GraphicsContext gc = canvas.getGraphicsContext2D();
+        gc.setImageSmoothing(false);
         gc.save();
         applyCameraShake(gc);
         drawOffice(gc);
@@ -548,29 +566,17 @@ public class GameScreen extends StackPane {
 
     private void drawNpcs(GraphicsContext gc) {
         for (EmployeeNpc employee : employees) {
-            gc.setFill(employee.color());
-            gc.fillRoundRect(employee.x() - 14, employee.y() - 14, 28, 28, 10, 10);
+            drawCenteredSprite(gc, employeeSprite(employee), employee.x(), employee.y(), NPC_DRAW_SIZE);
             drawSpeechTag(gc, employee.x(), employee.y() - 24, employee.reactionText(), Color.web("#1f2937"));
         }
 
-        gc.setFill(manager.color());
-        gc.fillRoundRect(manager.x() - 16, manager.y() - 16, 32, 32, 12, 12);
+        drawCenteredSprite(gc, managerSprite(), manager.x(), manager.y(), NPC_DRAW_SIZE);
         drawSpeechTag(gc, manager.x(), manager.y() - 28, manager.statusText(), Color.web("#5b21b6"));
     }
 
     private void drawPlayer(GraphicsContext gc) {
-        if (player.isHidden()) {
-            gc.setFill(Color.rgb(217, 119, 6, 0.18));
-            gc.fillRoundRect(player.x(), player.y(), player.width(), player.height(), 14, 14);
-            return;
-        }
-
-        gc.setFill(Color.web("#d97706"));
-        gc.fillRoundRect(player.x(), player.y(), player.width(), player.height(), 14, 14);
-
-        gc.setFill(Color.web("#fff7ed"));
-        gc.fillOval(player.x() + 8, player.y() + 9, 8, 8);
-        gc.fillOval(player.x() + 22, player.y() + 9, 8, 8);
+        Image sprite = player.isHidden() ? catHideSprite : currentCatSprite();
+        drawCenteredSprite(gc, sprite, player.centerX(), player.centerY(), PLAYER_DRAW_SIZE);
     }
 
     private void drawFloatingTexts(GraphicsContext gc) {
@@ -851,5 +857,43 @@ public class GameScreen extends StackPane {
 
     private void addShake(double amount) {
         shakeIntensity = Math.max(shakeIntensity, amount);
+    }
+
+    private Image currentCatSprite() {
+        if (player.isMoving() && !catWalkFrames.isEmpty()) {
+            return frameAt(catWalkFrames, 7.5);
+        }
+        return catIdleSprite;
+    }
+
+    private Image employeeSprite(EmployeeNpc employee) {
+        return switch (employee.state()) {
+            case PANICKING -> employeePanicFrames.isEmpty() ? employeeIdleSprite : frameAt(employeePanicFrames, 4.0);
+            case INVESTIGATING -> employeeWalkFrames.isEmpty() ? employeeIdleSprite : frameAt(employeeWalkFrames, 4.5);
+            case DISTRACTED -> employeeReactFrames.isEmpty() ? employeeIdleSprite : frameAt(employeeReactFrames, 4.0);
+            case WORKING -> employeeIdleSprite;
+        };
+    }
+
+    private Image managerSprite() {
+        return switch (manager.mode()) {
+            case CHASING -> managerChaseFrames.isEmpty() ? managerIdleSprite : frameAt(managerChaseFrames, 8.0);
+            case INVESTIGATING -> managerAlertFrames.isEmpty() ? managerIdleSprite : frameAt(managerAlertFrames, 4.5);
+            case PATROLLING -> managerWalkFrames.isEmpty() ? managerIdleSprite : frameAt(managerWalkFrames, 6.0);
+        };
+    }
+
+    private Image frameAt(List<Image> frames, double framesPerSecond) {
+        int index = (int) (animationClock * framesPerSecond) % frames.size();
+        return frames.get(index);
+    }
+
+    private void drawCenteredSprite(GraphicsContext gc, Image sprite, double centerX, double centerY, double maxSize) {
+        double width = sprite.getWidth();
+        double height = sprite.getHeight();
+        double scale = Math.min(maxSize / width, maxSize / height);
+        double drawWidth = width * scale;
+        double drawHeight = height * scale;
+        gc.drawImage(sprite, centerX - drawWidth / 2.0, centerY - drawHeight / 2.0, drawWidth, drawHeight);
     }
 }
