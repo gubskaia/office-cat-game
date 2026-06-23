@@ -33,6 +33,10 @@ public class GameScreen extends StackPane {
     private static final double EVENT_DURATION_SECONDS = 2.8;
     private static final double MANAGER_PENALTY_COOLDOWN_SECONDS = 4.0;
     private static final double COMBO_WINDOW_SECONDS = 6.0;
+    private static final double MEOW_COOLDOWN_SECONDS = 5.0;
+    private static final double MEOW_CHAOS_GAIN = 4.0;
+    private static final double MEOW_EVENT_RADIUS = 210.0;
+    private static final double MEOW_EVENT_SEVERITY = 4.8;
     private static final double SHAKE_DECAY_PER_SECOND = 3.4;
     private static final Point PLAYER_RESPAWN = new Point(90, 110);
     private static final double PLAYER_DRAW_SIZE = 78;
@@ -106,6 +110,7 @@ public class GameScreen extends StackPane {
     private double timeLeft = DAY_DURATION_SECONDS;
     private double managerPenaltyCooldown;
     private double comboTimer;
+    private double meowCooldownRemaining;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
@@ -115,6 +120,7 @@ public class GameScreen extends StackPane {
     private boolean interactionHeld;
     private HideSpot activeHideSpot;
     private boolean dashHeld;
+    private boolean meowHeld;
     private boolean startHeld;
     private boolean pauseHeld;
     private boolean restartHeld;
@@ -161,12 +167,14 @@ public class GameScreen extends StackPane {
             timeLeft = Math.max(0, timeLeft - deltaSeconds);
             managerPenaltyCooldown = Math.max(0, managerPenaltyCooldown - deltaSeconds);
             comboTimer = Math.max(0, comboTimer - deltaSeconds);
+            meowCooldownRemaining = Math.max(0, meowCooldownRemaining - deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
             shakePhase += deltaSeconds * 34;
             if (comboTimer == 0) {
                 comboCount = 0;
             }
             handleDashInput();
+            handleMeowInput();
             player.update(input, deltaSeconds, walls);
             handleInteractionAttempt();
             updateChaosEvents(deltaSeconds);
@@ -235,6 +243,34 @@ public class GameScreen extends StackPane {
         dashHeld = dashPressed;
     }
 
+    private void handleMeowInput() {
+        boolean meowPressed = input.isPressed(KeyCode.SPACE);
+
+        if (meowPressed && !meowHeld && gameState == GameState.PLAYING && meowCooldownRemaining <= 0) {
+            meowCooldownRemaining = MEOW_COOLDOWN_SECONDS;
+            chaosPercent = Math.min(100, chaosPercent + MEOW_CHAOS_GAIN);
+            chaosEvents.add(new ChaosEvent(
+                    "cat meow",
+                    player.centerX(),
+                    player.centerY(),
+                    MEOW_EVENT_RADIUS,
+                    MEOW_EVENT_SEVERITY,
+                    1.8
+            ));
+            addIncident("Cat meowed to lure attention");
+            addShake(1.8);
+            floatingTexts.add(new FloatingText(
+                    "Meow!",
+                    player.centerX(),
+                    player.y() - 20,
+                    Color.web("#f9a8d4"),
+                    0.9
+            ));
+        }
+
+        meowHeld = meowPressed;
+    }
+
     private void startNewRun() {
         resetSession();
         gameState = GameState.PLAYING;
@@ -250,6 +286,7 @@ public class GameScreen extends StackPane {
         timeLeft = DAY_DURATION_SECONDS;
         managerPenaltyCooldown = 0;
         comboTimer = 0;
+        meowCooldownRemaining = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -258,6 +295,7 @@ public class GameScreen extends StackPane {
         currentObjective = nextObjective();
         interactionHeld = false;
         dashHeld = false;
+        meowHeld = false;
         endMessage = "";
         player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
         player.setHidden(false);
@@ -652,6 +690,9 @@ public class GameScreen extends StackPane {
         gc.fillText(player.isDashReady()
                 ? "Dash Ready [Shift]"
                 : String.format("Dash %.1fs", player.dashCooldownRemaining()), 196, 678);
+        gc.fillText(meowCooldownRemaining <= 0
+                ? "Meow Ready [Space]"
+                : String.format("Meow %.1fs", meowCooldownRemaining), 36, 696);
 
         gc.setFill(Color.rgb(255, 255, 255, 0.2));
         gc.fillRoundRect(36, 548, 322, 18, 10, 10);
@@ -670,7 +711,7 @@ public class GameScreen extends StackPane {
         gc.fillText(manager.statusText(), 1038, 636);
         gc.fillText(String.format("Pressure %.0f%%", currentChaosPressure() * 50), 1038, 658);
         gc.fillText("WASD move  E interact", 1038, 676);
-        gc.fillText("Shift dash", 1038, 692);
+        gc.fillText("Shift dash  Space meow", 1038, 692);
 
         gc.setFill(Color.rgb(17, 24, 39, 0.9));
         gc.fillRoundRect(378, 620, 340, 80, 18, 18);
@@ -780,8 +821,9 @@ public class GameScreen extends StackPane {
         gc.fillText("Reach 100% chaos before the work day ends.", WIDTH / 2.0, 305);
         gc.fillText("Avoid the manager and chain mischief for combos.", WIDTH / 2.0, 330);
         gc.fillText("Use Shift to dash out of trouble.", WIDTH / 2.0, 352);
-        gc.fillText("[Enter] Start run", WIDTH / 2.0, 372);
-        gc.fillText("WASD move   E interact   Shift dash   Esc pause", WIDTH / 2.0, 394);
+        gc.fillText("Use Space to lure NPCs with a meow.", WIDTH / 2.0, 374);
+        gc.fillText("[Enter] Start run", WIDTH / 2.0, 398);
+        gc.fillText("WASD move   E interact   Shift dash   Space meow   Esc pause", WIDTH / 2.0, 420);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
