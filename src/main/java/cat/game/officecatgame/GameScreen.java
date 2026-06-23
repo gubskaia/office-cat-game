@@ -615,167 +615,164 @@ public class GameScreen extends StackPane {
 
     private void drawHud(GraphicsContext gc) {
         gc.setFill(Color.rgb(17, 24, 39, 0.88));
-        gc.fillRoundRect(24, 18, 470, 130, 20, 20);
+        gc.fillRoundRect(20, 588, 338, 112, 18, 18);
 
-        gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 18));
-        gc.fillText("Office Cat: Chaos Manager", 42, 47);
-
-        gc.setFont(Font.font("Verdana", 15));
-        gc.fillText(String.format("Time left: %02d:%02d", (int) timeLeft / 60, (int) timeLeft % 60), 42, 74);
-        gc.fillText("Goal: reach 100% chaos before the work day ends", 42, 96);
-        gc.fillText(player.isHidden() ? "Status: hidden in a box" : "Status: exposed and chaotic", 42, 118);
-        gc.fillText(comboCount > 1 && comboTimer > 0
-                ? String.format("Combo x%d active for %.1fs", comboCount, comboTimer)
-                : "Combo: build a streak by chaining chaos quickly", 42, 140);
-
-        gc.setFill(Color.rgb(255, 255, 255, 0.2));
-        gc.fillRoundRect(470, 28, 320, 24, 12, 12);
-        gc.setFill(Color.web("#ef4444"));
-        gc.fillRoundRect(470, 28, 3.2 * chaosPercent, 24, 12, 12);
-
-        gc.setFill(Color.web("#111827"));
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 14));
-        gc.fillText(String.format("Chaos: %.0f%%", chaosPercent), 585, 45);
-
-        gc.setFill(Color.rgb(17, 24, 39, 0.88));
-        gc.fillRoundRect(790, 18, 450, 130, 20, 20);
-        gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Verdana", 15));
-        gc.fillText("Controls: WASD / arrows to move, E to cause trouble", 812, 48);
-        gc.fillText("Actions: keyboard nap, mug push, Wi-Fi, meeting meow, paper shred", 812, 76);
-        gc.fillText("Manager: " + manager.statusText(), 812, 104);
-        gc.fillText(String.format("Pressure: %.0f%%", currentChaosPressure() * 50), 812, 132);
-        gc.fillText("State: " + gameState.name(), 1060, 132);
-
-        gc.setFill(Color.rgb(17, 24, 39, 0.9));
-        gc.fillRoundRect(24, 160, 1216, 72, 20, 20);
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 16));
-        gc.fillText("Current Objective", 42, 188);
-        gc.setFont(Font.font("Verdana", 15));
+        gc.fillText("Office Cat", 36, 614);
+
+        gc.setFont(Font.font("Verdana", 13));
+        gc.fillText(String.format("Time %02d:%02d", (int) timeLeft / 60, (int) timeLeft % 60), 36, 638);
+        gc.fillText(player.isHidden() ? "Status Hidden in a box" : "Status Causing trouble", 36, 658);
+        gc.fillText(comboCount > 1 && comboTimer > 0
+                ? String.format("Combo x%d %.1fs", comboCount, comboTimer)
+                : "Chain actions for combo", 36, 678);
+
+        gc.setFill(Color.rgb(255, 255, 255, 0.2));
+        gc.fillRoundRect(36, 548, 322, 18, 10, 10);
+        gc.setFill(Color.web("#ef4444"));
+        gc.fillRoundRect(36, 548, 3.22 * chaosPercent, 18, 10, 10);
+
+        gc.setFill(Color.web("#111827"));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
+        gc.fillText(String.format("Chaos %.0f%%", chaosPercent), 162, 562);
+
+        gc.setFill(Color.rgb(17, 24, 39, 0.88));
+        gc.fillRoundRect(1022, 588, 218, 112, 18, 18);
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Verdana", 12));
+        gc.fillText("Manager", 1038, 614);
+        gc.fillText(manager.statusText(), 1038, 636);
+        gc.fillText(String.format("Pressure %.0f%%", currentChaosPressure() * 50), 1038, 658);
+        gc.fillText("WASD move  E interact", 1038, 680);
+
+        gc.setFill(Color.rgb(17, 24, 39, 0.9));
+        gc.fillRoundRect(378, 620, 340, 80, 18, 18);
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
+        gc.fillText("Objective", 394, 644);
+        gc.setFont(Font.font("Verdana", 12));
         if (currentObjective != null) {
-            gc.fillText(currentObjective.title() + ": " + currentObjective.description(), 42, 214);
-            gc.fillText(String.format("Reward: +%.0f bonus chaos", currentObjective.bonusChaos()), 960, 214);
+            gc.fillText(currentObjective.title(), 394, 666);
+            gc.fillText(currentObjective.description(), 394, 686);
+            gc.fillText(String.format("+%.0f chaos", currentObjective.bonusChaos()), 636, 644);
         }
     }
 
     private void drawIncidentFeed(GraphicsContext gc) {
         gc.setFill(Color.rgb(17, 24, 39, 0.88));
-        gc.fillRoundRect(958, 160, 282, 120, 18, 18);
+        gc.fillRoundRect(736, 620, 268, 80, 18, 18);
         gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 15));
-        gc.fillText("Recent Incidents", 978, 186);
-        gc.setFont(Font.font("Verdana", 13));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
+        gc.fillText("Incidents", 752, 644);
+        gc.setFont(Font.font("Verdana", 11));
 
         int line = 0;
         for (IncidentFeedEntry entry : incidentFeed) {
-            if (line >= 4) {
+            if (line >= 3) {
                 break;
             }
             gc.setFill(Color.WHITE.deriveColor(0, 1, 1, entry.alpha()));
-            gc.fillText("- " + entry.text(), 978, 210 + line * 18);
+            gc.fillText("- " + entry.text(), 752, 664 + line * 12);
             line++;
         }
     }
 
     private void drawPrompt(GraphicsContext gc, ChaosInteraction interaction) {
         gc.setFill(Color.rgb(17, 24, 39, 0.92));
-        gc.fillRoundRect(420, 635, 440, 48, 16, 16);
+        gc.fillRoundRect(430, 656, 420, 34, 14, 14);
 
         gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 16));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
-        gc.fillText("[E] " + interaction.promptText(), WIDTH / 2.0, 659);
+        gc.fillText("[E] " + interaction.promptText(), WIDTH / 2.0, 673);
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.BASELINE);
     }
 
     private void drawHideSpotPrompt(GraphicsContext gc, HideSpot hideSpot) {
         gc.setFill(Color.rgb(17, 24, 39, 0.92));
-        gc.fillRoundRect(420, 635, 440, 48, 16, 16);
+        gc.fillRoundRect(430, 656, 420, 34, 14, 14);
 
         gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 16));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
-        gc.fillText("[E] Hide in " + hideSpot.label(), WIDTH / 2.0, 659);
+        gc.fillText("[E] Hide in " + hideSpot.label(), WIDTH / 2.0, 673);
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.BASELINE);
     }
 
     private void drawHidePrompt(GraphicsContext gc) {
         gc.setFill(Color.rgb(17, 24, 39, 0.92));
-        gc.fillRoundRect(420, 635, 440, 48, 16, 16);
+        gc.fillRoundRect(430, 656, 420, 34, 14, 14);
 
         gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 16));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
-        gc.fillText("[E] Sneak out of the box", WIDTH / 2.0, 659);
+        gc.fillText("[E] Sneak out of the box", WIDTH / 2.0, 673);
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.BASELINE);
     }
 
     private void drawGameOverOverlay(GraphicsContext gc) {
-        gc.setFill(Color.rgb(0, 0, 0, 0.5));
+        gc.setFill(Color.rgb(0, 0, 0, 0.28));
         gc.fillRect(0, 0, WIDTH, HEIGHT);
 
         gc.setFill(Color.rgb(255, 248, 235, 0.95));
-        gc.fillRoundRect(250, 220, 780, 220, 28, 28);
+        gc.fillRoundRect(380, 240, 520, 156, 24, 24);
 
         gc.setFill(Color.web("#111827"));
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 30));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 24));
         gc.setTextAlign(TextAlignment.CENTER);
-        gc.fillText(endMessage, WIDTH / 2.0, 300);
+        gc.fillText(endMessage, WIDTH / 2.0, 292);
 
-        gc.setFont(Font.font("Verdana", 20));
-        gc.fillText(String.format("Final chaos level: %.0f%%", chaosPercent), WIDTH / 2.0, 350);
-        gc.fillText("[R] Restart run    [Enter] Return to menu", WIDTH / 2.0, 390);
+        gc.setFont(Font.font("Verdana", 16));
+        gc.fillText(String.format("Final chaos %.0f%%", chaosPercent), WIDTH / 2.0, 330);
+        gc.fillText("[R] Restart   [Enter] Menu", WIDTH / 2.0, 360);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
     private void drawMenuOverlay(GraphicsContext gc) {
-        gc.setFill(Color.rgb(10, 15, 25, 0.55));
+        gc.setFill(Color.rgb(10, 15, 25, 0.28));
         gc.fillRect(0, 0, WIDTH, HEIGHT);
 
         gc.setFill(Color.rgb(255, 248, 235, 0.96));
-        gc.fillRoundRect(210, 150, 860, 360, 32, 32);
+        gc.fillRoundRect(360, 170, 560, 240, 26, 26);
 
         gc.setFill(Color.web("#111827"));
         gc.setTextAlign(TextAlignment.CENTER);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 36));
-        gc.fillText("Office Cat: Chaos Manager", WIDTH / 2.0, 235);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 28));
+        gc.fillText("Office Cat: Chaos Manager", WIDTH / 2.0, 225);
 
-        gc.setFont(Font.font("Verdana", 22));
-        gc.fillText("Turn a productive office into a furry disaster zone.", WIDTH / 2.0, 285);
+        gc.setFont(Font.font("Verdana", 17));
+        gc.fillText("Turn a productive office into a furry disaster zone.", WIDTH / 2.0, 264);
 
-        gc.setFont(Font.font("Verdana", 18));
-        gc.fillText("Reach 100% chaos before the work day ends.", WIDTH / 2.0, 338);
-        gc.fillText("Avoid the manager, trigger distractions, and hide in boxes.", WIDTH / 2.0, 370);
-        gc.fillText("Follow daily cat objectives for bonus chaos.", WIDTH / 2.0, 402);
-        gc.fillText("Big sabotage events now shake the office view.", WIDTH / 2.0, 430);
-        gc.fillText("[Enter] Start run", WIDTH / 2.0, 462);
-        gc.fillText("[WASD / Arrows] Move    [E] Interact    [Esc / P] Pause", WIDTH / 2.0, 494);
+        gc.setFont(Font.font("Verdana", 14));
+        gc.fillText("Reach 100% chaos before the work day ends.", WIDTH / 2.0, 305);
+        gc.fillText("Avoid the manager and chain mischief for combos.", WIDTH / 2.0, 330);
+        gc.fillText("[Enter] Start run", WIDTH / 2.0, 372);
+        gc.fillText("WASD move   E interact   Esc pause", WIDTH / 2.0, 394);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
     private void drawPauseOverlay(GraphicsContext gc) {
-        gc.setFill(Color.rgb(0, 0, 0, 0.42));
+        gc.setFill(Color.rgb(0, 0, 0, 0.22));
         gc.fillRect(0, 0, WIDTH, HEIGHT);
 
         gc.setFill(Color.rgb(255, 248, 235, 0.95));
-        gc.fillRoundRect(320, 220, 640, 200, 28, 28);
+        gc.fillRoundRect(440, 250, 400, 128, 22, 22);
 
         gc.setFill(Color.web("#111827"));
         gc.setTextAlign(TextAlignment.CENTER);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 30));
-        gc.fillText("Paused", WIDTH / 2.0, 290);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 24));
+        gc.fillText("Paused", WIDTH / 2.0, 295);
 
-        gc.setFont(Font.font("Verdana", 20));
-        gc.fillText("[Esc / P] Resume", WIDTH / 2.0, 338);
-        gc.fillText("[R] Restart run", WIDTH / 2.0, 372);
+        gc.setFont(Font.font("Verdana", 16));
+        gc.fillText("[Esc / P] Resume", WIDTH / 2.0, 330);
+        gc.fillText("[R] Restart run", WIDTH / 2.0, 356);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
