@@ -40,6 +40,8 @@ public class GameScreen extends StackPane {
     private static final double DANGER_ZONE_DURATION_SECONDS = 8.0;
     private static final double DANGER_ZONE_RADIUS = 92.0;
     private static final double DANGER_ZONE_PENALTY_INTERVAL = 1.25;
+    private static final double ZOOMIES_DURATION_SECONDS = 7.0;
+    private static final double ZOOMIES_SPEED_MULTIPLIER = 1.45;
     private static final double SHAKE_DECAY_PER_SECOND = 3.4;
     private static final Point PLAYER_RESPAWN = new Point(90, 110);
     private static final double PLAYER_DRAW_SIZE = 78;
@@ -54,6 +56,7 @@ public class GameScreen extends StackPane {
     private final PlayerCat player = new PlayerCat(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
     private final List<Rect> walls = new ArrayList<>();
     private final List<ChaosInteraction> interactions = new ArrayList<>();
+    private final List<CatSupportSpot> supportSpots = new ArrayList<>();
     private final List<HideSpot> hideSpots = new ArrayList<>();
     private final List<ChaosEvent> chaosEvents = new ArrayList<>();
     private final List<DangerZone> dangerZones = new ArrayList<>();
@@ -310,6 +313,7 @@ public class GameScreen extends StackPane {
         endMessage = "";
         player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
         player.setHidden(false);
+        player.clearTemporaryEffects();
         activeHideSpot = null;
         chaosEvents.clear();
         dangerZones.clear();
@@ -318,6 +322,9 @@ public class GameScreen extends StackPane {
 
         for (ChaosInteraction interaction : interactions) {
             interaction.reset();
+        }
+        for (CatSupportSpot supportSpot : supportSpots) {
+            supportSpot.reset();
         }
         for (EmployeeNpc employee : employees) {
             employee.reset();
@@ -333,9 +340,15 @@ public class GameScreen extends StackPane {
             } else {
                 HideSpot nearestHideSpot = getNearestHideSpot();
                 ChaosInteraction nearest = getNearestInteraction();
+                CatSupportSpot nearestSupportSpot = getNearestSupportSpot();
 
-                if (nearestHideSpot != null && shouldPreferHideSpot(nearestHideSpot, nearest)) {
+                if (nearestHideSpot != null
+                        && shouldPreferHideSpot(nearestHideSpot, nearest, nearestSupportSpot)) {
                     enterHideSpot(nearestHideSpot);
+                } else if (nearestSupportSpot != null
+                        && shouldPreferSupportSpot(nearestSupportSpot, nearest, nearestHideSpot)
+                        && nearestSupportSpot.canUse()) {
+                    useSupportSpot(nearestSupportSpot);
                 } else if (nearest != null && nearest.canTrigger()) {
                     nearest.trigger();
                     double chaosGain = applyCombo(nearest);
@@ -433,15 +446,74 @@ public class GameScreen extends StackPane {
         activeHideSpot = null;
     }
 
-    private boolean shouldPreferHideSpot(HideSpot hideSpot, ChaosInteraction interaction) {
+    private boolean shouldPreferHideSpot(HideSpot hideSpot, ChaosInteraction interaction, CatSupportSpot supportSpot) {
         if (hideSpot == null) {
             return false;
         }
-        if (interaction == null) {
-            return true;
+        double hideDistance = hideSpot.distanceTo(player.centerX(), player.centerY());
+        return hideDistance <= distanceToInteraction(interaction)
+                && hideDistance <= distanceToSupportSpot(supportSpot);
+    }
+
+    private boolean shouldPreferSupportSpot(CatSupportSpot supportSpot, ChaosInteraction interaction, HideSpot hideSpot) {
+        if (supportSpot == null) {
+            return false;
         }
-        return hideSpot.distanceTo(player.centerX(), player.centerY())
-                <= interaction.distanceTo(player.centerX(), player.centerY());
+        double supportDistance = supportSpot.distanceTo(player.centerX(), player.centerY());
+        return supportDistance < distanceToInteraction(interaction)
+                && supportDistance < distanceToHideSpot(hideSpot);
+    }
+
+    private double distanceToInteraction(ChaosInteraction interaction) {
+        return interaction == null
+                ? Double.MAX_VALUE
+                : interaction.distanceTo(player.centerX(), player.centerY());
+    }
+
+    private double distanceToSupportSpot(CatSupportSpot supportSpot) {
+        return supportSpot == null
+                ? Double.MAX_VALUE
+                : supportSpot.distanceTo(player.centerX(), player.centerY());
+    }
+
+    private double distanceToHideSpot(HideSpot hideSpot) {
+        return hideSpot == null
+                ? Double.MAX_VALUE
+                : hideSpot.distanceTo(player.centerX(), player.centerY());
+    }
+
+    private void useSupportSpot(CatSupportSpot supportSpot) {
+        supportSpot.use();
+        switch (supportSpot.id()) {
+            case "snack" -> {
+                meowCooldownRemaining = 0;
+                player.resetDashCooldown();
+                dangerExposureTimer = 0;
+                floatingTexts.add(new FloatingText(
+                        "Cooldowns refreshed!",
+                        supportSpot.x(),
+                        supportSpot.y() - 18,
+                        Color.web("#fde68a"),
+                        1.4
+                ));
+                addIncident("Kitchen snack restored cat energy");
+            }
+            case "sunbeam" -> {
+                player.activateZoomies(ZOOMIES_DURATION_SECONDS, ZOOMIES_SPEED_MULTIPLIER);
+                floatingTexts.add(new FloatingText(
+                        "Zoomies activated!",
+                        supportSpot.x(),
+                        supportSpot.y() - 18,
+                        Color.web("#fcd34d"),
+                        1.4
+                ));
+                addIncident("Sunbeam granted temporary zoomies");
+            }
+            default -> {
+                return;
+            }
+        }
+        addShake(2.2);
     }
 
     private void updateChaosEvents(double deltaSeconds) {
@@ -602,6 +674,25 @@ public class GameScreen extends StackPane {
         return result;
     }
 
+    private CatSupportSpot getNearestSupportSpot() {
+        if (player.isHidden()) {
+            return null;
+        }
+
+        CatSupportSpot result = null;
+        double bestDistance = Double.MAX_VALUE;
+
+        for (CatSupportSpot supportSpot : supportSpots) {
+            double distance = supportSpot.distanceTo(player.centerX(), player.centerY());
+            if (distance <= supportSpot.promptRadius() && distance < bestDistance) {
+                bestDistance = distance;
+                result = supportSpot;
+            }
+        }
+
+        return result;
+    }
+
     private void render() {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         gc.setImageSmoothing(false);
@@ -611,6 +702,7 @@ public class GameScreen extends StackPane {
         drawDangerZones(gc);
         drawChaosEvents(gc);
         drawInteractions(gc);
+        drawSupportSpots(gc);
         drawHideSpots(gc);
         drawNpcs(gc);
         drawPlayer(gc);
@@ -620,12 +712,15 @@ public class GameScreen extends StackPane {
         drawIncidentFeed(gc);
 
         ChaosInteraction nearest = getNearestInteraction();
+        CatSupportSpot nearestSupportSpot = getNearestSupportSpot();
         HideSpot nearestHideSpot = getNearestHideSpot();
         if (gameState == GameState.PLAYING) {
             if (player.isHidden()) {
                 drawHidePrompt(gc);
-            } else if (nearestHideSpot != null && shouldPreferHideSpot(nearestHideSpot, nearest)) {
+            } else if (nearestHideSpot != null && shouldPreferHideSpot(nearestHideSpot, nearest, nearestSupportSpot)) {
                 drawHideSpotPrompt(gc, nearestHideSpot);
+            } else if (nearestSupportSpot != null && shouldPreferSupportSpot(nearestSupportSpot, nearest, nearestHideSpot)) {
+                drawSupportPrompt(gc, nearestSupportSpot);
             } else if (nearest != null) {
                 drawPrompt(gc, nearest);
             }
@@ -696,6 +791,27 @@ public class GameScreen extends StackPane {
                 gc.fillOval(interaction.x() - 30, interaction.y() - 30, 60, 60);
             }
         }
+    }
+
+    private void drawSupportSpots(GraphicsContext gc) {
+        gc.setTextAlign(TextAlignment.CENTER);
+        for (CatSupportSpot supportSpot : supportSpots) {
+            double radius = supportSpot.canUse() ? 18 : 14;
+            Color fill = supportSpot.canUse()
+                    ? supportSpot.color()
+                    : supportSpot.color().deriveColor(0, 0.35, 0.85, 0.65);
+
+            gc.setFill(fill.deriveColor(0, 1, 1, supportSpot.canUse() ? 0.85 : 0.42));
+            gc.fillOval(supportSpot.x() - radius, supportSpot.y() - radius, radius * 2, radius * 2);
+            gc.setStroke(fill.brighter());
+            gc.setLineWidth(2);
+            gc.strokeOval(supportSpot.x() - radius - 6, supportSpot.y() - radius - 6, (radius + 6) * 2, (radius + 6) * 2);
+
+            gc.setFill(Color.rgb(17, 24, 39, 0.92));
+            gc.setFont(Font.font("Verdana", FontWeight.BOLD, 11));
+            gc.fillText(supportSpot.id().equals("snack") ? "SNACK" : "SUN", supportSpot.x(), supportSpot.y() + 4);
+        }
+        gc.setTextAlign(TextAlignment.LEFT);
     }
 
     private void drawHideSpots(GraphicsContext gc) {
@@ -787,6 +903,9 @@ public class GameScreen extends StackPane {
                 : (meowCooldownRemaining <= 0
                 ? "Meow Ready [Space]"
                 : String.format("Meow %.1fs", meowCooldownRemaining)), 36, 696);
+        gc.fillText(player.isZoomiesActive()
+                ? String.format("Zoomies %.1fs", player.zoomiesTimeRemaining())
+                : "Find support spots for bonuses", 196, 696);
 
         gc.setFill(Color.rgb(255, 255, 255, 0.2));
         gc.fillRoundRect(36, 548, 322, 18, 10, 10);
@@ -861,6 +980,22 @@ public class GameScreen extends StackPane {
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
         gc.fillText("[E] Hide in " + hideSpot.label(), WIDTH / 2.0, 673);
+        gc.setTextAlign(TextAlignment.LEFT);
+        gc.setTextBaseline(VPos.BASELINE);
+    }
+
+    private void drawSupportPrompt(GraphicsContext gc, CatSupportSpot supportSpot) {
+        gc.setFill(Color.rgb(17, 24, 39, 0.92));
+        gc.fillRoundRect(395, 656, 490, 34, 14, 14);
+
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setTextBaseline(VPos.CENTER);
+        String suffix = supportSpot.canUse()
+                ? supportSpot.promptText()
+                : supportSpot.effectText() + " recharging";
+        gc.fillText("[E] " + suffix, WIDTH / 2.0, 673);
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.BASELINE);
     }
@@ -984,6 +1119,27 @@ public class GameScreen extends StackPane {
         hideSpots.add(new HideSpot(120, 340, 68, "storage box"));
         hideSpots.add(new HideSpot(916, 175, 68, "meeting room box"));
         hideSpots.add(new HideSpot(1180, 520, 68, "director archive box"));
+
+        supportSpots.add(new CatSupportSpot(
+                "snack",
+                1046,
+                248,
+                "Grab a kitchen snack to refresh dash and meow",
+                "Snack station",
+                16.0,
+                82,
+                Color.web("#f59e0b")
+        ));
+        supportSpots.add(new CatSupportSpot(
+                "sunbeam",
+                790,
+                540,
+                "Stretch in the sunbeam for temporary zoomies",
+                "Sunbeam boost",
+                18.0,
+                86,
+                Color.web("#fde047")
+        ));
 
         interactions.add(new ChaosInteraction(
                 "keyboard",

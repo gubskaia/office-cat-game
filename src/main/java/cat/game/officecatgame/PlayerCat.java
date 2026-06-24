@@ -22,6 +22,8 @@ public class PlayerCat {
     private double dashDirectionY = 1;
     private double facingX;
     private double facingY = 1;
+    private double zoomiesTimeRemaining;
+    private double zoomiesMultiplier = 1;
 
     public PlayerCat(double x, double y) {
         this.x = x;
@@ -30,6 +32,10 @@ public class PlayerCat {
 
     public void update(InputState input, double deltaSeconds, List<Rect> walls) {
         dashCooldownRemaining = Math.max(0, dashCooldownRemaining - deltaSeconds);
+        zoomiesTimeRemaining = Math.max(0, zoomiesTimeRemaining - deltaSeconds);
+        if (zoomiesTimeRemaining == 0) {
+            zoomiesMultiplier = 1;
+        }
 
         if (hidden) {
             moving = false;
@@ -39,6 +45,7 @@ public class PlayerCat {
 
         double dx = 0;
         double dy = 0;
+        double movementSpeed = SPEED * zoomiesMultiplier;
 
         if (input.isPressed(KeyCode.A) || input.isPressed(KeyCode.LEFT)) {
             dx -= 1;
@@ -56,8 +63,8 @@ public class PlayerCat {
         double length = Math.hypot(dx, dy);
         if (dashTimeRemaining > 0) {
             dashTimeRemaining = Math.max(0, dashTimeRemaining - deltaSeconds);
-            dx = dashDirectionX * SPEED * DASH_MULTIPLIER * deltaSeconds;
-            dy = dashDirectionY * SPEED * DASH_MULTIPLIER * deltaSeconds;
+            dx = dashDirectionX * movementSpeed * DASH_MULTIPLIER * deltaSeconds;
+            dy = dashDirectionY * movementSpeed * DASH_MULTIPLIER * deltaSeconds;
             moving = true;
         } else {
             if (length > 0) {
@@ -65,8 +72,8 @@ public class PlayerCat {
                 dashDirectionY = dy / length;
                 facingX = dashDirectionX;
                 facingY = dashDirectionY;
-                dx = dashDirectionX * SPEED * deltaSeconds;
-                dy = dashDirectionY * SPEED * deltaSeconds;
+                dx = dashDirectionX * movementSpeed * deltaSeconds;
+                dy = dashDirectionY * movementSpeed * deltaSeconds;
             }
             moving = length > 0;
         }
@@ -212,5 +219,29 @@ public class PlayerCat {
 
     public double dashCooldownRemaining() {
         return dashCooldownRemaining;
+    }
+
+    public void resetDashCooldown() {
+        dashCooldownRemaining = 0;
+    }
+
+    public void activateZoomies(double durationSeconds, double speedMultiplier) {
+        zoomiesTimeRemaining = Math.max(zoomiesTimeRemaining, durationSeconds);
+        zoomiesMultiplier = Math.max(zoomiesMultiplier, speedMultiplier);
+    }
+
+    public boolean isZoomiesActive() {
+        return zoomiesTimeRemaining > 0;
+    }
+
+    public double zoomiesTimeRemaining() {
+        return zoomiesTimeRemaining;
+    }
+
+    public void clearTemporaryEffects() {
+        dashTimeRemaining = 0;
+        dashCooldownRemaining = 0;
+        zoomiesTimeRemaining = 0;
+        zoomiesMultiplier = 1;
     }
 }
