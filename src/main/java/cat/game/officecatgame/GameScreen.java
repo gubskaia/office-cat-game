@@ -800,6 +800,10 @@ public class GameScreen extends StackPane {
     private void drawOffice(GraphicsContext gc) {
         gc.setFill(Color.web("#f8f3e8"));
         gc.fillRect(0, 0, WIDTH, HEIGHT);
+        gc.setFill(Color.rgb(255, 255, 255, 0.16));
+        gc.fillRect(0, 0, WIDTH, 46);
+        gc.setFill(Color.rgb(8, 10, 18, 0.12));
+        gc.fillRect(0, 46, WIDTH, 3);
 
         fillAreaWithTile(gc, openSpaceFloorTile, 40, 70, 520, 300, 64);
         fillAreaWithTile(gc, meetingFloorTile, 590, 70, 300, 220, 64);
@@ -813,12 +817,10 @@ public class GameScreen extends StackPane {
         gc.strokeRect(920, 70, 300, 220);
         gc.strokeRect(780, 330, 440, 260);
 
-        gc.setFill(Color.web("#374151"));
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 20));
-        gc.fillText("Open Space", 60, 100);
-        gc.fillText("Meeting Room", 610, 100);
-        gc.fillText("Kitchen", 940, 100);
-        gc.fillText("Director's Office", 800, 360);
+        drawRoomBadge(gc, 58, 82, "OPEN SPACE", Color.web("#60a5fa"));
+        drawRoomBadge(gc, 608, 82, "MEETING ROOM", Color.web("#8b5cf6"));
+        drawRoomBadge(gc, 938, 82, "KITCHEN", Color.web("#f59e0b"));
+        drawRoomBadge(gc, 798, 342, "DIRECTOR'S OFFICE", Color.web("#10b981"));
 
         gc.setStroke(Color.rgb(59, 73, 97, 0.4));
         gc.setLineWidth(2);
@@ -827,6 +829,7 @@ public class GameScreen extends StackPane {
         }
 
         drawFurniture(gc);
+        drawTopRibbon(gc);
     }
 
     private void drawInteractions(GraphicsContext gc) {
@@ -934,6 +937,7 @@ public class GameScreen extends StackPane {
     private void drawHud(GraphicsContext gc) {
         boolean insideDangerZone = dangerZones.stream()
                 .anyMatch(zone -> zone.contains(player.centerX(), player.centerY()));
+        double urgencyPulse = 0.76 + 0.24 * (Math.sin(animationClock * 5.0) + 1) / 2.0;
 
         drawPanel(gc, 20, 588, 338, 112, Color.web("#f97316"));
         drawPanel(gc, 370, 532, 244, 168, Color.web("#22c55e"));
@@ -963,7 +967,10 @@ public class GameScreen extends StackPane {
                 ? String.format("Zoomies %.1fs", player.zoomiesTimeRemaining())
                 : "Find support spots for bonuses", 196, 696);
 
-        drawLabeledBar(gc, 36, 548, 322, 18, chaosPercent / 100.0, Color.web("#ef4444"), "Chaos " + String.format("%.0f%%", chaosPercent));
+        Color chaosColor = chaosPercent >= 80
+                ? Color.web("#fb7185").deriveColor(0, 1, urgencyPulse, 1)
+                : Color.web("#ef4444");
+        drawLabeledBar(gc, 36, 548, 322, 18, chaosPercent / 100.0, chaosColor, "Chaos " + String.format("%.0f%%", chaosPercent));
         drawLabeledBar(gc, 380, 548, 224, 18, officeProductivity, officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD
                 ? Color.web("#22c55e")
                 : Color.web("#f59e0b"), "Office Flow");
@@ -979,8 +986,11 @@ public class GameScreen extends StackPane {
         gc.setFill(Color.web("#dbeafe"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
         gc.fillText("Current Objective", 642, 614);
+        gc.setFill(Color.web("#93c5fd").deriveColor(0, 1, 0.85 + 0.15 * urgencyPulse, 1));
+        gc.fillOval(916, 603, 12, 12);
         gc.setFont(Font.font("Verdana", 12));
         if (currentObjective != null) {
+            gc.setFill(Color.web("#dbeafe"));
             gc.fillText(currentObjective.title(), 642, 638);
             gc.fillText(currentObjective.description(), 642, 662);
             gc.setFill(Color.web("#93c5fd"));
@@ -1055,6 +1065,9 @@ public class GameScreen extends StackPane {
 
         gc.setFont(Font.font("Verdana", 17));
         gc.fillText("Turn a productive office into a furry disaster zone.", WIDTH / 2.0, 248);
+        gc.setStroke(Color.rgb(255, 255, 255, 0.18));
+        gc.setLineWidth(2);
+        gc.strokeLine(424, 266, 856, 266);
 
         gc.setFont(Font.font("Verdana", 14));
         gc.fillText("Reach 100% chaos before the work day ends.", WIDTH / 2.0, 290);
@@ -1081,6 +1094,42 @@ public class GameScreen extends StackPane {
         gc.fillText("[Esc / P] Resume", WIDTH / 2.0, 326);
         gc.fillText("[R] Restart run", WIDTH / 2.0, 352);
         gc.setTextAlign(TextAlignment.LEFT);
+    }
+
+    private void drawTopRibbon(GraphicsContext gc) {
+        drawPanel(gc, 18, 10, 344, 42, Color.web("#f97316"));
+        drawPanel(gc, 1038, 10, 224, 42, Color.web("#60a5fa"));
+
+        gc.setFill(Color.web("#fff7ed"));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+        gc.fillText("OFFICE CAT // CHAOS SHIFT", 34, 36);
+
+        gc.setFill(Color.web("#dbeafe"));
+        gc.setTextAlign(TextAlignment.RIGHT);
+        gc.fillText(dayStageLabel(), 1244, 36);
+        gc.setTextAlign(TextAlignment.LEFT);
+    }
+
+    private String dayStageLabel() {
+        double progress = 1.0 - (timeLeft / DAY_DURATION_SECONDS);
+        if (progress < 0.33) {
+            return "MORNING CHAOS";
+        }
+        if (progress < 0.66) {
+            return "DEADLINE PANIC";
+        }
+        return "FINAL HOUR";
+    }
+
+    private void drawRoomBadge(GraphicsContext gc, double x, double y, String label, Color accent) {
+        double width = Math.max(116, label.length() * 8.3 + 26);
+        gc.setFill(Color.rgb(17, 24, 39, 0.88));
+        gc.fillRoundRect(x, y, width, 28, 14, 14);
+        gc.setFill(accent.deriveColor(0, 1, 1, 0.96));
+        gc.fillRoundRect(x, y, width, 6, 14, 14);
+        gc.setFill(Color.web("#fff7ed"));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+        gc.fillText(label, x + 12, y + 20);
     }
 
     private void drawPanel(GraphicsContext gc, double x, double y, double width, double height, Color accent) {
@@ -1130,8 +1179,12 @@ public class GameScreen extends StackPane {
     }
 
     private void drawSpeechTag(GraphicsContext gc, double centerX, double y, String text, Color background) {
+        double width = Math.max(112, text.length() * 6.8 + 24);
         gc.setFill(background);
-        gc.fillRoundRect(centerX - 62, y - 14, 124, 24, 12, 12);
+        gc.fillRoundRect(centerX - width / 2.0, y - 14, width, 24, 12, 12);
+        gc.setStroke(Color.rgb(255, 255, 255, 0.1));
+        gc.setLineWidth(1);
+        gc.strokeRoundRect(centerX - width / 2.0, y - 14, width, 24, 12, 12);
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Verdana", 11));
         gc.setTextAlign(TextAlignment.CENTER);
