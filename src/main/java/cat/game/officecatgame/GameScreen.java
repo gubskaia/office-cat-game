@@ -935,11 +935,13 @@ public class GameScreen extends StackPane {
         boolean insideDangerZone = dangerZones.stream()
                 .anyMatch(zone -> zone.contains(player.centerX(), player.centerY()));
 
-        gc.setFill(Color.rgb(17, 24, 39, 0.88));
-        gc.fillRoundRect(20, 588, 338, 112, 18, 18);
+        drawPanel(gc, 20, 588, 338, 112, Color.web("#f97316"));
+        drawPanel(gc, 370, 532, 244, 168, Color.web("#22c55e"));
+        drawPanel(gc, 626, 588, 324, 112, Color.web("#60a5fa"));
+        drawPanel(gc, 962, 588, 278, 112, Color.web("#a78bfa"));
 
-        gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 16));
+        gc.setFill(Color.web("#fff7ed"));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 17));
         gc.fillText("Office Cat", 36, 614);
 
         gc.setFont(Font.font("Verdana", 13));
@@ -961,53 +963,35 @@ public class GameScreen extends StackPane {
                 ? String.format("Zoomies %.1fs", player.zoomiesTimeRemaining())
                 : "Find support spots for bonuses", 196, 696);
 
-        gc.setFill(Color.rgb(255, 255, 255, 0.2));
-        gc.fillRoundRect(36, 548, 322, 18, 10, 10);
-        gc.setFill(Color.web("#ef4444"));
-        gc.fillRoundRect(36, 548, 3.22 * chaosPercent, 18, 10, 10);
-
-        gc.setFill(Color.web("#111827"));
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.fillText(String.format("Chaos %.0f%%", chaosPercent), 162, 562);
-
-        gc.setFill(Color.rgb(255, 255, 255, 0.2));
-        gc.fillRoundRect(378, 548, 224, 18, 10, 10);
-        gc.setFill(officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD
+        drawLabeledBar(gc, 36, 548, 322, 18, chaosPercent / 100.0, Color.web("#ef4444"), "Chaos " + String.format("%.0f%%", chaosPercent));
+        drawLabeledBar(gc, 380, 548, 224, 18, officeProductivity, officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD
                 ? Color.web("#22c55e")
-                : Color.web("#f59e0b"));
-        gc.fillRoundRect(378, 548, 224 * officeProductivity, 18, 10, 10);
-        gc.setFill(Color.web("#111827"));
-        gc.fillText("Office", 463, 562);
+                : Color.web("#f59e0b"), "Office Flow");
 
-        gc.setFill(Color.rgb(17, 24, 39, 0.88));
-        gc.fillRoundRect(1022, 588, 218, 112, 18, 18);
-        gc.setFill(Color.WHITE);
+        gc.setFill(Color.web("#ede9fe"));
         gc.setFont(Font.font("Verdana", 12));
-        gc.fillText("Manager", 1038, 614);
-        gc.fillText(manager.statusText(), 1038, 636);
-        gc.fillText(String.format("Pressure %.0f%%", currentChaosPressure() * 50), 1038, 658);
-        gc.fillText("WASD move  E interact", 1038, 676);
-        gc.fillText("Shift dash  Space meow", 1038, 692);
+        gc.fillText("Manager Watch", 978, 614);
+        gc.fillText(manager.statusText(), 978, 636);
+        gc.fillText(String.format("Pressure %.0f%%", currentChaosPressure() * 50), 978, 658);
+        gc.fillText("WASD move  E interact", 978, 678);
+        gc.fillText("Shift dash  Space meow", 978, 696);
 
-        gc.setFill(Color.rgb(17, 24, 39, 0.9));
-        gc.fillRoundRect(622, 620, 340, 80, 18, 18);
-        gc.setFill(Color.WHITE);
+        gc.setFill(Color.web("#dbeafe"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.fillText("Objective", 638, 644);
+        gc.fillText("Current Objective", 642, 614);
         gc.setFont(Font.font("Verdana", 12));
         if (currentObjective != null) {
-            gc.fillText(currentObjective.title(), 638, 666);
-            gc.fillText(currentObjective.description(), 638, 686);
-            gc.fillText(String.format("+%.0f chaos", currentObjective.bonusChaos()), 880, 644);
+            gc.fillText(currentObjective.title(), 642, 638);
+            gc.fillText(currentObjective.description(), 642, 662);
+            gc.setFill(Color.web("#93c5fd"));
+            gc.fillText(String.format("Reward +%.0f chaos", currentObjective.bonusChaos()), 642, 686);
         }
     }
 
     private void drawIncidentFeed(GraphicsContext gc) {
-        gc.setFill(Color.rgb(17, 24, 39, 0.88));
-        gc.fillRoundRect(968, 620, 272, 80, 18, 18);
-        gc.setFill(Color.WHITE);
+        gc.setFill(Color.web("#ede9fe"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.fillText("Incidents", 984, 644);
+        gc.fillText("Recent Incidents", 978, 614);
         gc.setFont(Font.font("Verdana", 11));
 
         int line = 0;
@@ -1015,126 +999,134 @@ public class GameScreen extends StackPane {
             if (line >= 3) {
                 break;
             }
-            gc.setFill(Color.WHITE.deriveColor(0, 1, 1, entry.alpha()));
-            gc.fillText("- " + entry.text(), 984, 664 + line * 12);
+            gc.setFill(Color.web("#f5f3ff").deriveColor(0, 1, 1, entry.alpha()));
+            gc.fillText("- " + entry.text(), 978, 636 + line * 18);
             line++;
         }
     }
 
     private void drawPrompt(GraphicsContext gc, ChaosInteraction interaction) {
-        gc.setFill(Color.rgb(17, 24, 39, 0.92));
-        gc.fillRoundRect(430, 656, 420, 34, 14, 14);
-
-        gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.setTextAlign(TextAlignment.CENTER);
-        gc.setTextBaseline(VPos.CENTER);
-        gc.fillText("[E] " + interaction.promptText(), WIDTH / 2.0, 673);
-        gc.setTextAlign(TextAlignment.LEFT);
-        gc.setTextBaseline(VPos.BASELINE);
+        drawBottomPrompt(gc, "[E] " + interaction.promptText(), Color.web("#60a5fa"), 442);
     }
 
     private void drawHideSpotPrompt(GraphicsContext gc, HideSpot hideSpot) {
-        gc.setFill(Color.rgb(17, 24, 39, 0.92));
-        gc.fillRoundRect(430, 656, 420, 34, 14, 14);
-
-        gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.setTextAlign(TextAlignment.CENTER);
-        gc.setTextBaseline(VPos.CENTER);
-        gc.fillText("[E] Hide in " + hideSpot.label(), WIDTH / 2.0, 673);
-        gc.setTextAlign(TextAlignment.LEFT);
-        gc.setTextBaseline(VPos.BASELINE);
+        drawBottomPrompt(gc, "[E] Hide in " + hideSpot.label(), Color.web("#22c55e"), 442);
     }
 
     private void drawSupportPrompt(GraphicsContext gc, CatSupportSpot supportSpot) {
-        gc.setFill(Color.rgb(17, 24, 39, 0.92));
-        gc.fillRoundRect(395, 656, 490, 34, 14, 14);
-
-        gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.setTextAlign(TextAlignment.CENTER);
-        gc.setTextBaseline(VPos.CENTER);
         String suffix = supportSpot.canUse()
                 ? supportSpot.promptText()
                 : supportSpot.effectText() + " recharging";
-        gc.fillText("[E] " + suffix, WIDTH / 2.0, 673);
-        gc.setTextAlign(TextAlignment.LEFT);
-        gc.setTextBaseline(VPos.BASELINE);
+        drawBottomPrompt(gc, "[E] " + suffix, Color.web("#f59e0b"), 512);
     }
 
     private void drawHidePrompt(GraphicsContext gc) {
-        gc.setFill(Color.rgb(17, 24, 39, 0.92));
-        gc.fillRoundRect(430, 656, 420, 34, 14, 14);
-
-        gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.setTextAlign(TextAlignment.CENTER);
-        gc.setTextBaseline(VPos.CENTER);
-        gc.fillText("[E] Sneak out of the box", WIDTH / 2.0, 673);
-        gc.setTextAlign(TextAlignment.LEFT);
-        gc.setTextBaseline(VPos.BASELINE);
+        drawBottomPrompt(gc, "[E] Sneak out of the box", Color.web("#34d399"), 442);
     }
 
     private void drawGameOverOverlay(GraphicsContext gc) {
-        gc.setFill(Color.rgb(0, 0, 0, 0.28));
+        gc.setFill(Color.rgb(8, 10, 18, 0.42));
         gc.fillRect(0, 0, WIDTH, HEIGHT);
 
-        gc.setFill(Color.rgb(255, 248, 235, 0.95));
-        gc.fillRoundRect(380, 240, 520, 156, 24, 24);
+        drawPanel(gc, 372, 228, 536, 180, Color.web("#ef4444"));
 
-        gc.setFill(Color.web("#111827"));
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 24));
+        gc.setFill(Color.web("#fff7ed"));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 26));
         gc.setTextAlign(TextAlignment.CENTER);
-        gc.fillText(endMessage, WIDTH / 2.0, 292);
+        gc.fillText(endMessage, WIDTH / 2.0, 282);
 
         gc.setFont(Font.font("Verdana", 16));
-        gc.fillText(String.format("Final chaos %.0f%%", chaosPercent), WIDTH / 2.0, 330);
-        gc.fillText("[R] Restart   [Enter] Menu", WIDTH / 2.0, 360);
+        gc.fillText(String.format("Final chaos %.0f%%", chaosPercent), WIDTH / 2.0, 326);
+        gc.fillText(String.format("Office productivity %.0f%%", officeProductivity * 100), WIDTH / 2.0, 350);
+        gc.fillText("[R] Restart   [Enter] Menu", WIDTH / 2.0, 382);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
     private void drawMenuOverlay(GraphicsContext gc) {
-        gc.setFill(Color.rgb(10, 15, 25, 0.28));
+        gc.setFill(Color.rgb(8, 10, 18, 0.44));
         gc.fillRect(0, 0, WIDTH, HEIGHT);
 
-        gc.setFill(Color.rgb(255, 248, 235, 0.96));
-        gc.fillRoundRect(360, 170, 560, 240, 26, 26);
+        drawPanel(gc, 334, 146, 612, 292, Color.web("#f97316"));
 
-        gc.setFill(Color.web("#111827"));
+        gc.setFill(Color.web("#fff7ed"));
         gc.setTextAlign(TextAlignment.CENTER);
-        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 28));
-        gc.fillText("Office Cat: Chaos Manager", WIDTH / 2.0, 225);
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 30));
+        gc.fillText("Office Cat: Chaos Manager", WIDTH / 2.0, 208);
 
         gc.setFont(Font.font("Verdana", 17));
-        gc.fillText("Turn a productive office into a furry disaster zone.", WIDTH / 2.0, 264);
+        gc.fillText("Turn a productive office into a furry disaster zone.", WIDTH / 2.0, 248);
 
         gc.setFont(Font.font("Verdana", 14));
-        gc.fillText("Reach 100% chaos before the work day ends.", WIDTH / 2.0, 305);
-        gc.fillText("Avoid the manager and chain mischief for combos.", WIDTH / 2.0, 330);
-        gc.fillText("Use Shift to dash out of trouble.", WIDTH / 2.0, 352);
-        gc.fillText("Use Space to lure NPCs with a meow.", WIDTH / 2.0, 374);
-        gc.fillText("[Enter] Start run", WIDTH / 2.0, 398);
-        gc.fillText("WASD move   E interact   Shift dash   Space meow   Esc pause", WIDTH / 2.0, 420);
+        gc.fillText("Reach 100% chaos before the work day ends.", WIDTH / 2.0, 290);
+        gc.fillText("Avoid the manager, crash productivity, and chain combos.", WIDTH / 2.0, 316);
+        gc.fillText("Shift dash   Space meow   E interact   Esc pause", WIDTH / 2.0, 350);
+        gc.setFill(Color.web("#fdba74"));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 16));
+        gc.fillText("[Enter] Start Run", WIDTH / 2.0, 398);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
     private void drawPauseOverlay(GraphicsContext gc) {
-        gc.setFill(Color.rgb(0, 0, 0, 0.22));
+        gc.setFill(Color.rgb(8, 10, 18, 0.34));
         gc.fillRect(0, 0, WIDTH, HEIGHT);
 
-        gc.setFill(Color.rgb(255, 248, 235, 0.95));
-        gc.fillRoundRect(440, 250, 400, 128, 22, 22);
+        drawPanel(gc, 430, 238, 420, 152, Color.web("#60a5fa"));
 
-        gc.setFill(Color.web("#111827"));
+        gc.setFill(Color.web("#eff6ff"));
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 24));
-        gc.fillText("Paused", WIDTH / 2.0, 295);
+        gc.fillText("Paused", WIDTH / 2.0, 286);
 
         gc.setFont(Font.font("Verdana", 16));
-        gc.fillText("[Esc / P] Resume", WIDTH / 2.0, 330);
-        gc.fillText("[R] Restart run", WIDTH / 2.0, 356);
+        gc.fillText("[Esc / P] Resume", WIDTH / 2.0, 326);
+        gc.fillText("[R] Restart run", WIDTH / 2.0, 352);
         gc.setTextAlign(TextAlignment.LEFT);
+    }
+
+    private void drawPanel(GraphicsContext gc, double x, double y, double width, double height, Color accent) {
+        gc.setFill(Color.rgb(6, 10, 18, 0.26));
+        gc.fillRoundRect(x + 4, y + 6, width, height, 20, 20);
+        gc.setFill(Color.rgb(17, 24, 39, 0.93));
+        gc.fillRoundRect(x, y, width, height, 20, 20);
+        gc.setFill(accent.deriveColor(0, 1, 1, 0.92));
+        gc.fillRoundRect(x, y, width, 8, 20, 20);
+        gc.setStroke(Color.rgb(255, 255, 255, 0.08));
+        gc.setLineWidth(1.5);
+        gc.strokeRoundRect(x + 0.75, y + 0.75, width - 1.5, height - 1.5, 20, 20);
+    }
+
+    private void drawLabeledBar(
+            GraphicsContext gc,
+            double x,
+            double y,
+            double width,
+            double height,
+            double progress,
+            Color fillColor,
+            String label
+    ) {
+        double clamped = Math.max(0, Math.min(1, progress));
+        gc.setFill(Color.rgb(255, 255, 255, 0.14));
+        gc.fillRoundRect(x, y, width, height, 10, 10);
+        gc.setFill(fillColor);
+        gc.fillRoundRect(x, y, width * clamped, height, 10, 10);
+        gc.setFill(Color.web("#111827"));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.fillText(label, x + width / 2.0, y + 14);
+        gc.setTextAlign(TextAlignment.LEFT);
+    }
+
+    private void drawBottomPrompt(GraphicsContext gc, String text, Color accent, double width) {
+        double x = (WIDTH - width) / 2.0;
+        drawPanel(gc, x, 650, width, 42, accent);
+        gc.setFill(Color.web("#fff7ed"));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setTextBaseline(VPos.CENTER);
+        gc.fillText(text, WIDTH / 2.0, 671);
+        gc.setTextAlign(TextAlignment.LEFT);
+        gc.setTextBaseline(VPos.BASELINE);
     }
 
     private void drawSpeechTag(GraphicsContext gc, double centerX, double y, String text, Color background) {
