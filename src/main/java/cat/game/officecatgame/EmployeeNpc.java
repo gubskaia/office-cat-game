@@ -45,6 +45,7 @@ public class EmployeeNpc {
     private double targetX;
     private double targetY;
     private double productivity = 1.0;
+    private double reportCooldown;
 
     public EmployeeNpc(String name, double x, double y, Color color) {
         this.name = name;
@@ -66,9 +67,12 @@ public class EmployeeNpc {
         targetX = homeX;
         targetY = homeY;
         productivity = 1.0;
+        reportCooldown = 0;
     }
 
     public void update(double deltaSeconds, PlayerCat player, ChaosEvent strongestEvent) {
+        reportCooldown = Math.max(0, reportCooldown - deltaSeconds);
+
         if (strongestEvent != null) {
             reactToEvent(strongestEvent);
         }
@@ -166,6 +170,17 @@ public class EmployeeNpc {
 
     public double productivity() {
         return productivity;
+    }
+
+    public boolean canReportCat(PlayerCat player) {
+        return state == State.PANICKING
+                && !player.isHidden()
+                && reportCooldown <= 0
+                && distanceTo(player.centerX(), player.centerY()) < 150;
+    }
+
+    public void markReportUsed() {
+        reportCooldown = 5.2;
     }
 
     private String pickLine(String[] variants, int seed) {

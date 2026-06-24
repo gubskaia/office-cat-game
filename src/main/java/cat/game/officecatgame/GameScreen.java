@@ -40,6 +40,8 @@ public class GameScreen extends StackPane {
     private static final double DANGER_ZONE_DURATION_SECONDS = 8.0;
     private static final double DANGER_ZONE_RADIUS = 92.0;
     private static final double DANGER_ZONE_PENALTY_INTERVAL = 1.25;
+    private static final double PRODUCTIVITY_CASCADE_THRESHOLD = 0.45;
+    private static final double PRODUCTIVITY_CASCADE_RATE = 1.35;
     private static final double ZOOMIES_DURATION_SECONDS = 7.0;
     private static final double ZOOMIES_SPEED_MULTIPLIER = 1.45;
     private static final double SHAKE_DECAY_PER_SECOND = 3.4;
@@ -120,9 +122,11 @@ public class GameScreen extends StackPane {
     private double meowCooldownRemaining;
     private double dangerZoneCreateCooldown;
     private double dangerExposureTimer;
+    private double productivityCascadeTicker;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
+    private double officeProductivity = 1.0;
     private int comboCount;
     private int objectiveIndex;
     private ChaosObjective currentObjective;
@@ -192,6 +196,7 @@ public class GameScreen extends StackPane {
             updateFloatingTexts(deltaSeconds);
             updateIncidentFeed(deltaSeconds);
             updateNpcs(deltaSeconds);
+            updateOfficeProductivity(deltaSeconds);
             applyDangerZonePressure(deltaSeconds);
             handleManagerCatch();
 
@@ -301,10 +306,12 @@ public class GameScreen extends StackPane {
         meowCooldownRemaining = 0;
         dangerZoneCreateCooldown = 0;
         dangerExposureTimer = 0;
+        productivityCascadeTicker = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
         shakePhase = 0;
+        officeProductivity = 1.0;
         objectiveIndex = 0;
         currentObjective = nextObjective();
         interactionHeld = false;
@@ -539,6 +546,25 @@ public class GameScreen extends StackPane {
     private void updateNpcs(double deltaSeconds) {
         for (EmployeeNpc employee : employees) {
             employee.update(deltaSeconds, player, strongestEventNear(employee.x(), employee.y(), 165));
+            if (employee.canReportCat(player)) {
+                employee.markReportUsed();
+                chaosEvents.add(new ChaosEvent(
+                        "employee report",
+                        employee.x(),
+                        employee.y(),
+                        220,
+                        6.0,
+                        2.6
+                ));
+                addIncident(employee.name() + " reported the cat");
+                floatingTexts.add(new FloatingText(
+                        "Manager!",
+                        employee.x(),
+                        employee.y() - 22,
+                        Color.web("#fca5a5"),
+                        1.0
+                ));
+            }
         }
         ChaosEvent managerEvent = strongestEventNear(manager.x(), manager.y(), 260);
         manager.update(deltaSeconds, player, managerEvent, currentChaosPressure());
@@ -562,6 +588,33 @@ public class GameScreen extends StackPane {
                     Color.web("#fca5a5"),
                     1.1
             ));
+        }
+    }
+
+    private void updateOfficeProductivity(double deltaSeconds) {
+        if (employees.isEmpty()) {
+            officeProductivity = 1.0;
+            return;
+        }
+
+        double totalProductivity = 0;
+        for (EmployeeNpc employee : employees) {
+            totalProductivity += employee.productivity();
+        }
+        officeProductivity = totalProductivity / employees.size();
+
+        if (officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD) {
+            productivityCascadeTicker = 0;
+            return;
+        }
+
+        double disruptionStrength = 1.0 - officeProductivity;
+        chaosPercent = Math.min(100, chaosPercent + disruptionStrength * PRODUCTIVITY_CASCADE_RATE * deltaSeconds);
+
+        productivityCascadeTicker += deltaSeconds;
+        if (productivityCascadeTicker >= 2.4) {
+            productivityCascadeTicker = 0;
+            addIncident(String.format("Office slowdown: %.0f%% productivity", officeProductivity * 100));
         }
     }
 
@@ -891,6 +944,7 @@ public class GameScreen extends StackPane {
 
         gc.setFont(Font.font("Verdana", 13));
         gc.fillText(String.format("Time %02d:%02d", (int) timeLeft / 60, (int) timeLeft % 60), 36, 638);
+        gc.fillText(String.format("Productivity %.0f%%", officeProductivity * 100), 196, 638);
         gc.fillText(player.isHidden() ? "Status Hidden in a box" : "Status Causing trouble", 36, 658);
         gc.fillText(comboCount > 1 && comboTimer > 0
                 ? String.format("Combo x%d %.1fs", comboCount, comboTimer)
@@ -916,6 +970,15 @@ public class GameScreen extends StackPane {
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
         gc.fillText(String.format("Chaos %.0f%%", chaosPercent), 162, 562);
 
+        gc.setFill(Color.rgb(255, 255, 255, 0.2));
+        gc.fillRoundRect(378, 548, 224, 18, 10, 10);
+        gc.setFill(officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD
+                ? Color.web("#22c55e")
+                : Color.web("#f59e0b"));
+        gc.fillRoundRect(378, 548, 224 * officeProductivity, 18, 10, 10);
+        gc.setFill(Color.web("#111827"));
+        gc.fillText("Office", 463, 562);
+
         gc.setFill(Color.rgb(17, 24, 39, 0.88));
         gc.fillRoundRect(1022, 588, 218, 112, 18, 18);
         gc.setFill(Color.WHITE);
@@ -927,24 +990,24 @@ public class GameScreen extends StackPane {
         gc.fillText("Shift dash  Space meow", 1038, 692);
 
         gc.setFill(Color.rgb(17, 24, 39, 0.9));
-        gc.fillRoundRect(378, 620, 340, 80, 18, 18);
+        gc.fillRoundRect(622, 620, 340, 80, 18, 18);
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.fillText("Objective", 394, 644);
+        gc.fillText("Objective", 638, 644);
         gc.setFont(Font.font("Verdana", 12));
         if (currentObjective != null) {
-            gc.fillText(currentObjective.title(), 394, 666);
-            gc.fillText(currentObjective.description(), 394, 686);
-            gc.fillText(String.format("+%.0f chaos", currentObjective.bonusChaos()), 636, 644);
+            gc.fillText(currentObjective.title(), 638, 666);
+            gc.fillText(currentObjective.description(), 638, 686);
+            gc.fillText(String.format("+%.0f chaos", currentObjective.bonusChaos()), 880, 644);
         }
     }
 
     private void drawIncidentFeed(GraphicsContext gc) {
         gc.setFill(Color.rgb(17, 24, 39, 0.88));
-        gc.fillRoundRect(736, 620, 268, 80, 18, 18);
+        gc.fillRoundRect(968, 620, 272, 80, 18, 18);
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.fillText("Incidents", 752, 644);
+        gc.fillText("Incidents", 984, 644);
         gc.setFont(Font.font("Verdana", 11));
 
         int line = 0;
@@ -953,7 +1016,7 @@ public class GameScreen extends StackPane {
                 break;
             }
             gc.setFill(Color.WHITE.deriveColor(0, 1, 1, entry.alpha()));
-            gc.fillText("- " + entry.text(), 752, 664 + line * 12);
+            gc.fillText("- " + entry.text(), 984, 664 + line * 12);
             line++;
         }
     }
