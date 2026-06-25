@@ -83,12 +83,18 @@ public class GameScreen extends StackPane {
     );
     private final List<EmployeeNpc> employees = new ArrayList<>();
     private final List<Point> managerPatrolPath = List.of(
-            new Point(1030, 180),
-            new Point(1580, 190),
-            new Point(1670, 640),
-            new Point(1280, 780),
-            new Point(610, 560),
-            new Point(210, 260)
+            new Point(250, 520),
+            new Point(760, 520),
+            new Point(OPEN_SPACE_DOOR_X, 520),
+            new Point(MEETING_DOOR_X, 520),
+            new Point(KITCHEN_DOOR_X, 520),
+            new Point(1660, 520),
+            new Point(1660, 700),
+            new Point(1360, 700),
+            new Point(DIRECTOR_DOOR_X, 520),
+            new Point(900, 520),
+            new Point(500, 520),
+            new Point(190, 300)
     );
 
     private final Point managerSpawn = new Point(1020, 190);
@@ -839,6 +845,10 @@ public class GameScreen extends StackPane {
         drawMeetingFloor(gc, MEETING_ROOM);
         drawKitchenFloor(gc, KITCHEN_ROOM);
         drawWoodFloor(gc, DIRECTOR_ROOM, Color.web("#8c5a2e"), Color.web("#c58c4c"));
+        drawRoomDepth(gc, OPEN_SPACE_ROOM);
+        drawRoomDepth(gc, MEETING_ROOM);
+        drawRoomDepth(gc, KITCHEN_ROOM);
+        drawRoomDepth(gc, DIRECTOR_ROOM);
 
         drawRoomFrame(gc, OPEN_SPACE_ROOM, Color.web("#475569"));
         drawRoomFrame(gc, MEETING_ROOM, Color.web("#475569"));
@@ -1208,13 +1218,27 @@ public class GameScreen extends StackPane {
         double width = 90;
         double height = 18;
         double y = topSide ? baseY - 4 : baseY - height + 4;
+        double jambHeight = 28;
+        gc.setFill(Color.web("#5b6470"));
+        gc.fillRect(centerX - width / 2.0 - 10, y - (topSide ? 0 : 10), 10, jambHeight);
+        gc.fillRect(centerX + width / 2.0, y - (topSide ? 0 : 10), 10, jambHeight);
         gc.setFill(Color.web("#d1b38a"));
         gc.fillRoundRect(centerX - width / 2.0, y, width, height, 8, 8);
         gc.setFill(Color.web("#8b5e34"));
         gc.fillRect(centerX - width / 2.0 + 6, y + 4, width - 12, 4);
+        gc.setStroke(Color.rgb(70, 45, 25, 0.35));
+        gc.setLineWidth(2);
+        gc.strokeLine(centerX, y + 4, centerX, y + height - 4);
         gc.setStroke(Color.rgb(255, 248, 220, 0.34));
         gc.setLineWidth(1);
         gc.strokeRoundRect(centerX - width / 2.0, y, width, height, 8, 8);
+    }
+
+    private void drawRoomDepth(GraphicsContext gc, Rect room) {
+        gc.setFill(Color.rgb(15, 23, 42, 0.08));
+        gc.fillRoundRect(room.x() + 10, room.y() + room.height() - 22, room.width() - 20, 12, 10, 10);
+        gc.setFill(Color.rgb(255, 255, 255, 0.08));
+        gc.fillRoundRect(room.x() + 10, room.y() + 12, room.width() - 20, 8, 8, 8);
     }
 
     private void addRoomWalls(Rect room, double doorCenter, double doorSideY) {
@@ -1398,22 +1422,22 @@ public class GameScreen extends StackPane {
         addRoomWalls(KITCHEN_ROOM, KITCHEN_DOOR_X, KITCHEN_ROOM.y() + KITCHEN_ROOM.height());
         addRoomWalls(DIRECTOR_ROOM, DIRECTOR_DOOR_X, DIRECTOR_ROOM.y());
 
-        walls.add(new Rect(402, 154, 234, 56));
-        walls.add(new Rect(402, 296, 234, 56));
-        walls.add(new Rect(986, 150, 268, 126));
-        walls.add(new Rect(1510, 146, 228, 64));
-        walls.add(new Rect(1316, 590, 256, 68));
-        walls.add(new Rect(1660, 672, 92, 86));
-        walls.add(new Rect(1142, 690, 84, 94));
+        walls.add(new Rect(432, 170, 198, 42));
+        walls.add(new Rect(432, 312, 198, 42));
+        walls.add(new Rect(1004, 176, 234, 92));
+        walls.add(new Rect(1532, 162, 186, 48));
+        walls.add(new Rect(1352, 612, 206, 56));
+        walls.add(new Rect(1672, 686, 76, 72));
+        walls.add(new Rect(1152, 706, 66, 80));
 
         hideSpots.add(new HideSpot(130, 428, 68, "storage box"));
-        hideSpots.add(new HideSpot(1348, 246, 68, "meeting room box"));
+        hideSpots.add(new HideSpot(1284, 336, 68, "meeting room box"));
         hideSpots.add(new HideSpot(1716, 786, 68, "director archive box"));
 
         supportSpots.add(new CatSupportSpot(
                 "snack",
-                1696,
-                250,
+                1694,
+                246,
                 "Grab a kitchen snack to refresh dash and meow",
                 "Snack station",
                 16.0,
@@ -1422,8 +1446,8 @@ public class GameScreen extends StackPane {
         ));
         supportSpots.add(new CatSupportSpot(
                 "sunbeam",
-                1120,
-                816,
+                1124,
+                814,
                 "Stretch in the sunbeam for temporary zoomies",
                 "Sunbeam boost",
                 18.0,
@@ -1469,7 +1493,7 @@ public class GameScreen extends StackPane {
         ));
         interactions.add(new ChaosInteraction(
                 "meeting",
-                1120, 304,
+                1120, 312,
                 "Meow during the online meeting",
                 "meeting disruption",
                 16,
@@ -1481,7 +1505,7 @@ public class GameScreen extends StackPane {
         ));
         interactions.add(new ChaosInteraction(
                 "papers",
-                1518, 612,
+                1512, 604,
                 "Scatter the director's paperwork",
                 "paper catastrophe",
                 20,
@@ -1492,10 +1516,10 @@ public class GameScreen extends StackPane {
                 Color.web("#10b981")
         ));
 
-        employees.add(new EmployeeNpc("Mila", 310, 242, Color.web("#3b82f6")));
-        employees.add(new EmployeeNpc("Jon", 310, 384, Color.web("#22c55e")));
-        employees.add(new EmployeeNpc("Ava", 1120, 304, Color.web("#f97316")));
-        employees.add(new EmployeeNpc("Noah", 1290, 740, Color.web("#ec4899")));
+        employees.add(new EmployeeNpc("Mila", 334, 244, Color.web("#3b82f6")));
+        employees.add(new EmployeeNpc("Jon", 334, 386, Color.web("#22c55e")));
+        employees.add(new EmployeeNpc("Ava", 1120, 314, Color.web("#f97316")));
+        employees.add(new EmployeeNpc("Noah", 1288, 742, Color.web("#ec4899")));
     }
 
     private void addIncident(String text) {
