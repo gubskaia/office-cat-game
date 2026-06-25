@@ -23,6 +23,9 @@ public class ManagerNpc {
     private Mode mode = Mode.PATROLLING;
     private String statusText = "Patrolling";
     private double investigateTimer;
+    private double lastX;
+    private double lastY;
+    private double stuckTimer;
 
     public ManagerNpc(double x, double y, List<Point> patrolPoints) {
         this.x = x;
@@ -37,6 +40,9 @@ public class ManagerNpc {
         mode = Mode.PATROLLING;
         statusText = "Patrolling";
         investigateTimer = 0;
+        lastX = x;
+        lastY = y;
+        stuckTimer = 0;
     }
 
     public void update(
@@ -72,6 +78,8 @@ public class ManagerNpc {
             statusText = chaosPressure >= 1.5 ? "Alert patrol" : "Patrolling";
             patrol(deltaSeconds, patrolSpeed, walls);
         }
+
+        updateStuckRecovery(deltaSeconds);
     }
 
     private void patrol(double deltaSeconds, double patrolSpeed, List<Rect> walls) {
@@ -146,6 +154,26 @@ public class ManagerNpc {
 
     private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private void updateStuckRecovery(double deltaSeconds) {
+        double movement = Math.hypot(x - lastX, y - lastY);
+        if (movement < 1.2) {
+            stuckTimer += deltaSeconds;
+        } else {
+            stuckTimer = 0;
+        }
+
+        if (stuckTimer >= 1.0) {
+            patrolIndex = (patrolIndex + 1) % patrolPoints.size();
+            Point recoveryPoint = currentPatrolPoint();
+            x += Math.signum(recoveryPoint.x() - x) * 14;
+            y += Math.signum(recoveryPoint.y() - y) * 10;
+            stuckTimer = 0;
+        }
+
+        lastX = x;
+        lastY = y;
     }
 
     public boolean catches(PlayerCat player) {

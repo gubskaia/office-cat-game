@@ -1648,10 +1648,54 @@ public class GameScreen extends StackPane {
                 Color.web("#10b981")
         ));
 
-        employees.add(new EmployeeNpc("Mila", 334, 244, Color.web("#3b82f6")));
-        employees.add(new EmployeeNpc("Jon", 334, 386, Color.web("#22c55e")));
-        employees.add(new EmployeeNpc("Ava", 1120, 314, Color.web("#f97316")));
-        employees.add(new EmployeeNpc("Noah", 1288, 742, Color.web("#ec4899")));
+        employees.add(new EmployeeNpc(
+                "Mila",
+                334,
+                244,
+                Color.web("#3b82f6"),
+                List.of(
+                        new Point(334, 244),
+                        new Point(250, 244),
+                        new Point(334, 300),
+                        new Point(420, 244)
+                )
+        ));
+        employees.add(new EmployeeNpc(
+                "Jon",
+                334,
+                386,
+                Color.web("#22c55e"),
+                List.of(
+                        new Point(334, 386),
+                        new Point(250, 386),
+                        new Point(420, 386),
+                        new Point(334, 440)
+                )
+        ));
+        employees.add(new EmployeeNpc(
+                "Ava",
+                1120,
+                314,
+                Color.web("#f97316"),
+                List.of(
+                        new Point(1120, 314),
+                        new Point(1030, 314),
+                        new Point(1210, 314),
+                        new Point(1120, 250)
+                )
+        ));
+        employees.add(new EmployeeNpc(
+                "Noah",
+                1288,
+                742,
+                Color.web("#ec4899"),
+                List.of(
+                        new Point(1288, 742),
+                        new Point(1204, 742),
+                        new Point(1374, 742),
+                        new Point(1288, 680)
+                )
+        ));
     }
 
     private void addIncident(String text) {

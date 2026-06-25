@@ -40,6 +40,7 @@ public class EmployeeNpc {
     private final double homeX;
     private final double homeY;
     private final Color color;
+    private final List<Point> routinePoints;
 
     private double x;
     private double y;
@@ -51,8 +52,9 @@ public class EmployeeNpc {
     private double productivity = 1.0;
     private double reportCooldown;
     private double wanderTimer;
+    private int routineIndex;
 
-    public EmployeeNpc(String name, double x, double y, Color color) {
+    public EmployeeNpc(String name, double x, double y, Color color, List<Point> routinePoints) {
         this.name = name;
         this.homeX = x;
         this.homeY = y;
@@ -61,6 +63,7 @@ public class EmployeeNpc {
         this.targetX = x;
         this.targetY = y;
         this.color = color;
+        this.routinePoints = routinePoints;
     }
 
     public void reset() {
@@ -74,6 +77,7 @@ public class EmployeeNpc {
         productivity = 1.0;
         reportCooldown = 0;
         wanderTimer = 0;
+        routineIndex = 0;
     }
 
     public void update(double deltaSeconds, PlayerCat player, Point playerTarget, ChaosEvent strongestEvent, List<Rect> walls) {
@@ -107,7 +111,7 @@ public class EmployeeNpc {
             moveToward(targetX, targetY, state == State.PANICKING ? INSPECT_SPEED : WALK_SPEED, deltaSeconds, walls);
         } else if (state == State.WORKING) {
             if (wanderTimer == 0 || distanceTo(targetX, targetY) < 12) {
-                chooseWanderTarget();
+                chooseRoutineTarget();
             }
             reactionText = distanceTo(homeX, homeY) < 20 ? "Focused" : "Stretching legs";
             moveToward(targetX, targetY, WALK_SPEED * 0.65, deltaSeconds, walls);
@@ -191,13 +195,19 @@ public class EmployeeNpc {
         return Math.max(min, Math.min(max, value));
     }
 
-    private void chooseWanderTarget() {
-        int seed = (int) (System.nanoTime() + name.hashCode() * 31L);
-        double offsetX = ((Math.floorMod(seed, 9)) - 4) * 12;
-        double offsetY = ((Math.floorMod(seed / 7, 9)) - 4) * 10;
-        targetX = homeX + offsetX;
-        targetY = homeY + offsetY;
-        wanderTimer = 2.2;
+    private void chooseRoutineTarget() {
+        if (routinePoints == null || routinePoints.isEmpty()) {
+            targetX = homeX;
+            targetY = homeY;
+            wanderTimer = 2.2;
+            return;
+        }
+
+        Point nextPoint = routinePoints.get(routineIndex % routinePoints.size());
+        routineIndex = (routineIndex + 1) % routinePoints.size();
+        targetX = nextPoint.x();
+        targetY = nextPoint.y();
+        wanderTimer = 2.8;
     }
 
     public double distanceTo(double px, double py) {
