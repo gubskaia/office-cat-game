@@ -2,6 +2,8 @@ package cat.game.officecatgame;
 
 import javafx.scene.paint.Color;
 
+import java.util.List;
+
 public class EmployeeNpc {
     private static final String[] INVESTIGATION_LINES = {
             "Checking the noise",
@@ -31,6 +33,8 @@ public class EmployeeNpc {
 
     private static final double WALK_SPEED = 78.0;
     private static final double INSPECT_SPEED = 110.0;
+    private static final double WIDTH = 28.0;
+    private static final double HEIGHT = 28.0;
 
     private final String name;
     private final double homeX;
@@ -70,7 +74,7 @@ public class EmployeeNpc {
         reportCooldown = 0;
     }
 
-    public void update(double deltaSeconds, PlayerCat player, ChaosEvent strongestEvent) {
+    public void update(double deltaSeconds, PlayerCat player, ChaosEvent strongestEvent, List<Rect> walls) {
         reportCooldown = Math.max(0, reportCooldown - deltaSeconds);
 
         if (strongestEvent != null) {
@@ -97,9 +101,9 @@ public class EmployeeNpc {
         }
 
         if (state == State.INVESTIGATING || state == State.PANICKING) {
-            moveToward(targetX, targetY, state == State.PANICKING ? INSPECT_SPEED : WALK_SPEED, deltaSeconds);
+            moveToward(targetX, targetY, state == State.PANICKING ? INSPECT_SPEED : WALK_SPEED, deltaSeconds, walls);
         } else if (state == State.WORKING) {
-            moveToward(homeX, homeY, WALK_SPEED, deltaSeconds);
+            moveToward(homeX, homeY, WALK_SPEED, deltaSeconds, walls);
         }
     }
 
@@ -128,7 +132,7 @@ public class EmployeeNpc {
         return distanceTo(player.centerX(), player.centerY()) < 85;
     }
 
-    private void moveToward(double destinationX, double destinationY, double speed, double deltaSeconds) {
+    private void moveToward(double destinationX, double destinationY, double speed, double deltaSeconds, List<Rect> walls) {
         double dx = destinationX - x;
         double dy = destinationY - y;
         double length = Math.hypot(dx, dy);
@@ -136,8 +140,48 @@ public class EmployeeNpc {
             return;
         }
 
-        x += (dx / length) * speed * deltaSeconds;
-        y += (dy / length) * speed * deltaSeconds;
+        moveX((dx / length) * speed * deltaSeconds, walls);
+        moveY((dy / length) * speed * deltaSeconds, walls);
+        x = clamp(x, 0, GameScreen.WORLD_WIDTH - WIDTH);
+        y = clamp(y, 0, GameScreen.WORLD_HEIGHT - HEIGHT);
+    }
+
+    private void moveX(double dx, List<Rect> walls) {
+        x += dx;
+        Rect bounds = bounds();
+        for (Rect wall : walls) {
+            if (bounds.intersects(wall)) {
+                if (dx > 0) {
+                    x = wall.x() - WIDTH;
+                } else if (dx < 0) {
+                    x = wall.x() + wall.width();
+                }
+                bounds = bounds();
+            }
+        }
+    }
+
+    private void moveY(double dy, List<Rect> walls) {
+        y += dy;
+        Rect bounds = bounds();
+        for (Rect wall : walls) {
+            if (bounds.intersects(wall)) {
+                if (dy > 0) {
+                    y = wall.y() - HEIGHT;
+                } else if (dy < 0) {
+                    y = wall.y() + wall.height();
+                }
+                bounds = bounds();
+            }
+        }
+    }
+
+    private Rect bounds() {
+        return new Rect(x - WIDTH / 2.0, y - HEIGHT / 2.0, WIDTH, HEIGHT);
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     public double distanceTo(double px, double py) {

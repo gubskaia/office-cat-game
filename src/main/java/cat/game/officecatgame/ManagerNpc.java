@@ -13,6 +13,8 @@ public class ManagerNpc {
 
     private static final double PATROL_SPEED = 95.0;
     private static final double CHASE_SPEED = 145.0;
+    private static final double WIDTH = 32.0;
+    private static final double HEIGHT = 32.0;
 
     private final List<Point> patrolPoints;
     private int patrolIndex;
@@ -37,7 +39,7 @@ public class ManagerNpc {
         investigateTimer = 0;
     }
 
-    public void update(double deltaSeconds, PlayerCat player, ChaosEvent strongestEvent, double chaosPressure) {
+    public void update(double deltaSeconds, PlayerCat player, ChaosEvent strongestEvent, double chaosPressure, List<Rect> walls) {
         double patrolSpeed = PATROL_SPEED + chaosPressure * 14;
         double chaseSpeed = CHASE_SPEED + chaosPressure * 22;
         double sightRange = 145 + chaosPressure * 26;
@@ -46,14 +48,14 @@ public class ManagerNpc {
             mode = Mode.INVESTIGATING;
             statusText = "Investigating " + strongestEvent.label();
             investigateTimer = 3.6;
-            moveToward(strongestEvent.x(), strongestEvent.y(), patrolSpeed + 15, deltaSeconds);
+            moveToward(strongestEvent.x(), strongestEvent.y(), patrolSpeed + 15, deltaSeconds, walls);
         } else if (canSeePlayer(player, sightRange)) {
             mode = Mode.CHASING;
             statusText = chaosPressure >= 1.5 ? "Full panic pursuit!" : "Chasing the cat!";
-            moveToward(player.x(), player.y(), chaseSpeed, deltaSeconds);
+            moveToward(player.x(), player.y(), chaseSpeed, deltaSeconds, walls);
         } else if (investigateTimer > 0) {
             investigateTimer = Math.max(0, investigateTimer - deltaSeconds);
-            moveToward(currentPatrolPoint().x(), currentPatrolPoint().y(), patrolSpeed, deltaSeconds);
+            moveToward(currentPatrolPoint().x(), currentPatrolPoint().y(), patrolSpeed, deltaSeconds, walls);
             if (investigateTimer == 0) {
                 mode = Mode.PATROLLING;
                 statusText = "Patrolling";
@@ -61,11 +63,11 @@ public class ManagerNpc {
         } else {
             mode = Mode.PATROLLING;
             statusText = chaosPressure >= 1.5 ? "Alert patrol" : "Patrolling";
-            patrol(deltaSeconds, patrolSpeed);
+            patrol(deltaSeconds, patrolSpeed, walls);
         }
     }
 
-    private void patrol(double deltaSeconds, double patrolSpeed) {
+    private void patrol(double deltaSeconds, double patrolSpeed, List<Rect> walls) {
         Point patrolPoint = currentPatrolPoint();
         double dx = patrolPoint.x() - x;
         double dy = patrolPoint.y() - y;
@@ -73,7 +75,7 @@ public class ManagerNpc {
             patrolIndex = (patrolIndex + 1) % patrolPoints.size();
             patrolPoint = currentPatrolPoint();
         }
-        moveToward(patrolPoint.x(), patrolPoint.y(), patrolSpeed, deltaSeconds);
+        moveToward(patrolPoint.x(), patrolPoint.y(), patrolSpeed, deltaSeconds, walls);
     }
 
     private Point currentPatrolPoint() {
@@ -87,7 +89,7 @@ public class ManagerNpc {
         return distanceTo(player.centerX(), player.centerY()) < sightRange;
     }
 
-    private void moveToward(double destinationX, double destinationY, double speed, double deltaSeconds) {
+    private void moveToward(double destinationX, double destinationY, double speed, double deltaSeconds, List<Rect> walls) {
         double dx = destinationX - x;
         double dy = destinationY - y;
         double length = Math.hypot(dx, dy);
@@ -95,8 +97,48 @@ public class ManagerNpc {
             return;
         }
 
-        x += (dx / length) * speed * deltaSeconds;
-        y += (dy / length) * speed * deltaSeconds;
+        moveX((dx / length) * speed * deltaSeconds, walls);
+        moveY((dy / length) * speed * deltaSeconds, walls);
+        x = clamp(x, 0, GameScreen.WORLD_WIDTH - WIDTH);
+        y = clamp(y, 0, GameScreen.WORLD_HEIGHT - HEIGHT);
+    }
+
+    private void moveX(double dx, List<Rect> walls) {
+        x += dx;
+        Rect bounds = bounds();
+        for (Rect wall : walls) {
+            if (bounds.intersects(wall)) {
+                if (dx > 0) {
+                    x = wall.x() - WIDTH;
+                } else if (dx < 0) {
+                    x = wall.x() + wall.width();
+                }
+                bounds = bounds();
+            }
+        }
+    }
+
+    private void moveY(double dy, List<Rect> walls) {
+        y += dy;
+        Rect bounds = bounds();
+        for (Rect wall : walls) {
+            if (bounds.intersects(wall)) {
+                if (dy > 0) {
+                    y = wall.y() - HEIGHT;
+                } else if (dy < 0) {
+                    y = wall.y() + wall.height();
+                }
+                bounds = bounds();
+            }
+        }
+    }
+
+    private Rect bounds() {
+        return new Rect(x - WIDTH / 2.0, y - HEIGHT / 2.0, WIDTH, HEIGHT);
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     public boolean catches(PlayerCat player) {

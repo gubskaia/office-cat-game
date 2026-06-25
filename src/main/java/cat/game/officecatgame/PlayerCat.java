@@ -81,8 +81,8 @@ public class PlayerCat {
         moveX(dx, walls);
         moveY(dy, walls);
 
-        x = clamp(x, 0, GameScreen.WIDTH - width);
-        y = clamp(y, 0, GameScreen.HEIGHT - height);
+        x = clamp(x, 0, GameScreen.WORLD_WIDTH - width);
+        y = clamp(y, 0, GameScreen.WORLD_HEIGHT - height);
     }
 
     private void moveX(double dx, List<Rect> walls) {

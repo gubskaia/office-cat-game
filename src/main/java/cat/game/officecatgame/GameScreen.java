@@ -28,6 +28,8 @@ public class GameScreen extends StackPane {
 
     public static final int WIDTH = 1280;
     public static final int HEIGHT = 720;
+    public static final int WORLD_WIDTH = 1960;
+    public static final int WORLD_HEIGHT = 1120;
 
     private static final double DAY_DURATION_SECONDS = 180.0;
     private static final double EVENT_DURATION_SECONDS = 2.8;
@@ -45,17 +47,17 @@ public class GameScreen extends StackPane {
     private static final double ZOOMIES_DURATION_SECONDS = 7.0;
     private static final double ZOOMIES_SPEED_MULTIPLIER = 1.45;
     private static final double SHAKE_DECAY_PER_SECOND = 3.4;
-    private static final Point PLAYER_RESPAWN = new Point(90, 110);
+    private static final Point PLAYER_RESPAWN = new Point(170, 190);
     private static final double PLAYER_DRAW_SIZE = 78;
     private static final double NPC_DRAW_SIZE = 72;
     private static final double PROP_SMALL = 54;
     private static final double PROP_MEDIUM = 82;
     private static final double PROP_LARGE = 190;
     private static final double PROP_XL = 250;
-    private static final Rect OPEN_SPACE_ROOM = new Rect(40, 72, 520, 270);
-    private static final Rect MEETING_ROOM = new Rect(590, 72, 310, 210);
-    private static final Rect KITCHEN_ROOM = new Rect(930, 72, 300, 210);
-    private static final Rect DIRECTOR_ROOM = new Rect(760, 314, 470, 226);
+    private static final Rect OPEN_SPACE_ROOM = new Rect(80, 100, 760, 380);
+    private static final Rect MEETING_ROOM = new Rect(920, 100, 420, 290);
+    private static final Rect KITCHEN_ROOM = new Rect(1420, 100, 380, 290);
+    private static final Rect DIRECTOR_ROOM = new Rect(1080, 520, 720, 320);
 
     private final Canvas canvas = new Canvas(WIDTH, HEIGHT);
     private final InputState input = new InputState();
@@ -77,14 +79,15 @@ public class GameScreen extends StackPane {
     );
     private final List<EmployeeNpc> employees = new ArrayList<>();
     private final List<Point> managerPatrolPath = List.of(
-            new Point(760, 130),
-            new Point(1120, 180),
-            new Point(1090, 520),
-            new Point(620, 510),
-            new Point(260, 340)
+            new Point(1030, 180),
+            new Point(1580, 190),
+            new Point(1670, 640),
+            new Point(1280, 780),
+            new Point(610, 560),
+            new Point(210, 260)
     );
 
-    private final Point managerSpawn = new Point(780, 180);
+    private final Point managerSpawn = new Point(1020, 190);
     private final Image catIdleSprite = SpriteLoader.loadSingle("/assets/sprites/cat/cat_idle.png");
     private final Image catHideSprite = SpriteLoader.loadSingle("/assets/sprites/cat/cat_hide.png");
     private final Image catPounceSprite = SpriteLoader.loadSingle("/assets/sprites/cat/cat_pounce.png");
@@ -549,7 +552,7 @@ public class GameScreen extends StackPane {
 
     private void updateNpcs(double deltaSeconds) {
         for (EmployeeNpc employee : employees) {
-            employee.update(deltaSeconds, player, strongestEventNear(employee.x(), employee.y(), 165));
+            employee.update(deltaSeconds, player, strongestEventNear(employee.x(), employee.y(), 165), walls);
             if (employee.canReportCat(player)) {
                 employee.markReportUsed();
                 chaosEvents.add(new ChaosEvent(
@@ -571,7 +574,7 @@ public class GameScreen extends StackPane {
             }
         }
         ChaosEvent managerEvent = strongestEventNear(manager.x(), manager.y(), 260);
-        manager.update(deltaSeconds, player, managerEvent, currentChaosPressure());
+        manager.update(deltaSeconds, player, managerEvent, currentChaosPressure(), walls);
 
         if (managerEvent != null
                 && manager.mode() == ManagerNpc.Mode.INVESTIGATING
@@ -754,7 +757,7 @@ public class GameScreen extends StackPane {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         gc.setImageSmoothing(false);
         gc.save();
-        applyCameraShake(gc);
+        applyWorldCamera(gc);
         drawOffice(gc);
         drawDangerZones(gc);
         drawChaosEvents(gc);
@@ -765,6 +768,7 @@ public class GameScreen extends StackPane {
         drawPlayer(gc);
         drawFloatingTexts(gc);
         gc.restore();
+        drawTopRibbon(gc);
         drawHud(gc);
         drawIncidentFeed(gc);
 
@@ -792,22 +796,39 @@ public class GameScreen extends StackPane {
         }
     }
 
-    private void applyCameraShake(GraphicsContext gc) {
-        if (shakeIntensity <= 0) {
-            return;
+    private void applyWorldCamera(GraphicsContext gc) {
+        double cameraX = cameraX();
+        double cameraY = cameraY();
+        double shakeX = 0;
+        double shakeY = 0;
+        if (shakeIntensity > 0) {
+            shakeX = Math.sin(shakePhase) * shakeIntensity;
+            shakeY = Math.cos(shakePhase * 1.6) * shakeIntensity * 0.7;
         }
-        double offsetX = Math.sin(shakePhase) * shakeIntensity;
-        double offsetY = Math.cos(shakePhase * 1.6) * shakeIntensity * 0.7;
-        gc.translate(offsetX, offsetY);
+        gc.translate(-cameraX + shakeX, -cameraY + shakeY);
+    }
+
+    private double cameraX() {
+        return clamp(player.centerX() - WIDTH / 2.0, 0, WORLD_WIDTH - WIDTH);
+    }
+
+    private double cameraY() {
+        return clamp(player.centerY() - HEIGHT / 2.0, 0, WORLD_HEIGHT - HEIGHT);
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private void drawOffice(GraphicsContext gc) {
         gc.setFill(Color.web("#f3ecdf"));
-        gc.fillRect(0, 0, WIDTH, HEIGHT);
-        gc.setFill(Color.rgb(255, 255, 255, 0.16));
-        gc.fillRect(0, 0, WIDTH, 46);
-        gc.setFill(Color.rgb(8, 10, 18, 0.12));
-        gc.fillRect(0, 46, WIDTH, 3);
+        gc.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        gc.setFill(Color.rgb(221, 214, 196, 0.42));
+        gc.fillRect(0, 900, WORLD_WIDTH, 220);
+        gc.setFill(Color.rgb(8, 10, 18, 0.05));
+        for (double x = 0; x < WORLD_WIDTH; x += 140) {
+            gc.fillRect(x, 0, 2, WORLD_HEIGHT);
+        }
 
         drawGridFloor(gc, OPEN_SPACE_ROOM, Color.web("#8f949f"), Color.web("#d7dae0"), 40);
         drawMeetingFloor(gc, MEETING_ROOM);
@@ -819,10 +840,10 @@ public class GameScreen extends StackPane {
         drawRoomFrame(gc, KITCHEN_ROOM, Color.web("#475569"));
         drawRoomFrame(gc, DIRECTOR_ROOM, Color.web("#475569"));
 
-        drawRoomBadge(gc, 58, 84, "OPEN SPACE", Color.web("#60a5fa"));
-        drawRoomBadge(gc, 608, 84, "MEETING ROOM", Color.web("#8b5cf6"));
-        drawRoomBadge(gc, 948, 84, "KITCHEN", Color.web("#f59e0b"));
-        drawRoomBadge(gc, 778, 326, "DIRECTOR'S OFFICE", Color.web("#10b981"));
+        drawRoomBadge(gc, OPEN_SPACE_ROOM.x() + 18, OPEN_SPACE_ROOM.y() + 12, "OPEN SPACE", Color.web("#60a5fa"));
+        drawRoomBadge(gc, MEETING_ROOM.x() + 18, MEETING_ROOM.y() + 12, "MEETING ROOM", Color.web("#8b5cf6"));
+        drawRoomBadge(gc, KITCHEN_ROOM.x() + 18, KITCHEN_ROOM.y() + 12, "KITCHEN", Color.web("#f59e0b"));
+        drawRoomBadge(gc, DIRECTOR_ROOM.x() + 18, DIRECTOR_ROOM.y() + 12, "DIRECTOR'S OFFICE", Color.web("#10b981"));
 
         gc.setStroke(Color.rgb(59, 73, 97, 0.4));
         gc.setLineWidth(2);
@@ -831,7 +852,6 @@ public class GameScreen extends StackPane {
         }
 
         drawFurniture(gc);
-        drawTopRibbon(gc);
     }
 
     private void drawInteractions(GraphicsContext gc) {
@@ -1134,6 +1154,28 @@ public class GameScreen extends StackPane {
         gc.fillText(label, x + 12, y + 20);
     }
 
+    private void addRoomWalls(Rect room, double doorCenter, double doorSideY) {
+        double thickness = 14;
+        double doorSize = 92;
+
+        if (doorSideY <= room.y()) {
+            walls.add(new Rect(room.x(), room.y(), doorCenter - doorSize / 2.0 - room.x(), thickness));
+            walls.add(new Rect(doorCenter + doorSize / 2.0, room.y(),
+                    room.x() + room.width() - (doorCenter + doorSize / 2.0), thickness));
+            walls.add(new Rect(room.x(), room.y(), thickness, room.height()));
+            walls.add(new Rect(room.x() + room.width() - thickness, room.y(), thickness, room.height()));
+            walls.add(new Rect(room.x(), room.y() + room.height() - thickness, room.width(), thickness));
+        } else {
+            walls.add(new Rect(room.x(), room.y(), room.width(), thickness));
+            walls.add(new Rect(room.x(), room.y(), thickness, room.height()));
+            walls.add(new Rect(room.x() + room.width() - thickness, room.y(), thickness, room.height()));
+            walls.add(new Rect(room.x(), room.y() + room.height() - thickness,
+                    doorCenter - doorSize / 2.0 - room.x(), thickness));
+            walls.add(new Rect(doorCenter + doorSize / 2.0, room.y() + room.height() - thickness,
+                    room.x() + room.width() - (doorCenter + doorSize / 2.0), thickness));
+        }
+    }
+
     private void drawRoomFrame(GraphicsContext gc, Rect room, Color strokeColor) {
         gc.setStroke(strokeColor);
         gc.setLineWidth(4);
@@ -1270,40 +1312,45 @@ public class GameScreen extends StackPane {
     }
 
     private void drawFurniture(GraphicsContext gc) {
-        drawCenteredSprite(gc, deskSprite, 385, 162, 236);
-        drawCenteredSprite(gc, deskSprite, 385, 265, 236);
-        drawCenteredSprite(gc, meetingTableSprite, 745, 183, 278);
-        drawCenteredSprite(gc, cabinetSprite, 1068, 164, 148);
-        drawCenteredSprite(gc, deskSprite, 1058, 402, 244);
-        drawCenteredSprite(gc, cabinetSprite, 1190, 442, 122);
-        drawCenteredSprite(gc, cabinetSprite, 820, 438, 116);
+        drawCenteredSprite(gc, deskSprite, 520, 188, 258);
+        drawCenteredSprite(gc, deskSprite, 520, 330, 258);
+        drawCenteredSprite(gc, meetingTableSprite, 1120, 232, 336);
+        drawCenteredSprite(gc, cabinetSprite, 1618, 178, 156);
+        drawCenteredSprite(gc, deskSprite, 1462, 630, 280);
+        drawCenteredSprite(gc, cabinetSprite, 1730, 700, 138);
+        drawCenteredSprite(gc, cabinetSprite, 1182, 714, 126);
 
-        drawCenteredSprite(gc, chairSprite, 260, 214, 46);
-        drawCenteredSprite(gc, chairSprite, 260, 318, 46);
-        drawCenteredSprite(gc, chairSprite, 874, 478, 46);
+        drawCenteredSprite(gc, chairSprite, 358, 242, 52);
+        drawCenteredSprite(gc, chairSprite, 358, 384, 52);
+        drawCenteredSprite(gc, chairSprite, 1282, 740, 52);
 
-        drawCenteredSprite(gc, plantSprite, 528, 316, 52);
-        drawCenteredSprite(gc, plantSprite, 1192, 256, 52);
-        drawCenteredSprite(gc, plantSprite, 782, 520, 52);
+        drawCenteredSprite(gc, plantSprite, 798, 430, 58);
+        drawCenteredSprite(gc, plantSprite, 1760, 344, 56);
+        drawCenteredSprite(gc, plantSprite, 1116, 812, 56);
     }
 
     private void buildOfficeLayout() {
-        walls.add(new Rect(286, 135, 204, 46));
-        walls.add(new Rect(286, 238, 204, 46));
-        walls.add(new Rect(654, 128, 186, 112));
-        walls.add(new Rect(966, 132, 196, 52));
-        walls.add(new Rect(946, 360, 224, 54));
-        walls.add(new Rect(1130, 414, 86, 78));
-        walls.add(new Rect(786, 408, 76, 88));
+        addRoomWalls(OPEN_SPACE_ROOM, OPEN_SPACE_ROOM.x() + OPEN_SPACE_ROOM.width() - 90, OPEN_SPACE_ROOM.y() + OPEN_SPACE_ROOM.height());
+        addRoomWalls(MEETING_ROOM, MEETING_ROOM.x() + 164, MEETING_ROOM.y() + MEETING_ROOM.height());
+        addRoomWalls(KITCHEN_ROOM, KITCHEN_ROOM.x() + 76, KITCHEN_ROOM.y() + KITCHEN_ROOM.height());
+        addRoomWalls(DIRECTOR_ROOM, DIRECTOR_ROOM.x() + 88, DIRECTOR_ROOM.y());
 
-        hideSpots.add(new HideSpot(122, 304, 68, "storage box"));
-        hideSpots.add(new HideSpot(904, 216, 68, "meeting room box"));
-        hideSpots.add(new HideSpot(1172, 470, 68, "director archive box"));
+        walls.add(new Rect(402, 154, 234, 56));
+        walls.add(new Rect(402, 296, 234, 56));
+        walls.add(new Rect(986, 150, 268, 126));
+        walls.add(new Rect(1510, 146, 228, 64));
+        walls.add(new Rect(1316, 590, 256, 68));
+        walls.add(new Rect(1660, 672, 92, 86));
+        walls.add(new Rect(1142, 690, 84, 94));
+
+        hideSpots.add(new HideSpot(130, 428, 68, "storage box"));
+        hideSpots.add(new HideSpot(1348, 246, 68, "meeting room box"));
+        hideSpots.add(new HideSpot(1716, 786, 68, "director archive box"));
 
         supportSpots.add(new CatSupportSpot(
                 "snack",
-                1068,
-                236,
+                1696,
+                250,
                 "Grab a kitchen snack to refresh dash and meow",
                 "Snack station",
                 16.0,
@@ -1312,8 +1359,8 @@ public class GameScreen extends StackPane {
         ));
         supportSpots.add(new CatSupportSpot(
                 "sunbeam",
-                812,
-                500,
+                1120,
+                816,
                 "Stretch in the sunbeam for temporary zoomies",
                 "Sunbeam boost",
                 18.0,
@@ -1323,7 +1370,7 @@ public class GameScreen extends StackPane {
 
         interactions.add(new ChaosInteraction(
                 "keyboard",
-                452, 176,
+                576, 218,
                 "Nap on a developer keyboard",
                 "keyboard chaos",
                 18,
@@ -1335,7 +1382,7 @@ public class GameScreen extends StackPane {
         ));
         interactions.add(new ChaosInteraction(
                 "mug",
-                1128, 183,
+                1690, 196,
                 "Push a coffee mug off the kitchen counter",
                 "spilled coffee",
                 12,
@@ -1347,7 +1394,7 @@ public class GameScreen extends StackPane {
         ));
         interactions.add(new ChaosInteraction(
                 "wifi",
-                988, 390,
+                1372, 640,
                 "Disable the office Wi-Fi router",
                 "Wi-Fi outage",
                 26,
@@ -1359,7 +1406,7 @@ public class GameScreen extends StackPane {
         ));
         interactions.add(new ChaosInteraction(
                 "meeting",
-                744, 254,
+                1120, 304,
                 "Meow during the online meeting",
                 "meeting disruption",
                 16,
@@ -1371,7 +1418,7 @@ public class GameScreen extends StackPane {
         ));
         interactions.add(new ChaosInteraction(
                 "papers",
-                1116, 380,
+                1518, 612,
                 "Scatter the director's paperwork",
                 "paper catastrophe",
                 20,
@@ -1382,10 +1429,10 @@ public class GameScreen extends StackPane {
                 Color.web("#10b981")
         ));
 
-        employees.add(new EmployeeNpc("Mila", 212, 215, Color.web("#3b82f6")));
-        employees.add(new EmployeeNpc("Jon", 212, 318, Color.web("#22c55e")));
-        employees.add(new EmployeeNpc("Ava", 744, 254, Color.web("#f97316")));
-        employees.add(new EmployeeNpc("Noah", 884, 476, Color.web("#ec4899")));
+        employees.add(new EmployeeNpc("Mila", 310, 242, Color.web("#3b82f6")));
+        employees.add(new EmployeeNpc("Jon", 310, 384, Color.web("#22c55e")));
+        employees.add(new EmployeeNpc("Ava", 1120, 304, Color.web("#f97316")));
+        employees.add(new EmployeeNpc("Noah", 1290, 740, Color.web("#ec4899")));
     }
 
     private void addIncident(String text) {
