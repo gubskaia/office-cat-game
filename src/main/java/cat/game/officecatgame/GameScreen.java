@@ -52,6 +52,10 @@ public class GameScreen extends StackPane {
     private static final double PROP_MEDIUM = 82;
     private static final double PROP_LARGE = 190;
     private static final double PROP_XL = 250;
+    private static final Rect OPEN_SPACE_ROOM = new Rect(40, 72, 520, 270);
+    private static final Rect MEETING_ROOM = new Rect(590, 72, 310, 210);
+    private static final Rect KITCHEN_ROOM = new Rect(930, 72, 300, 210);
+    private static final Rect DIRECTOR_ROOM = new Rect(760, 314, 470, 226);
 
     private final Canvas canvas = new Canvas(WIDTH, HEIGHT);
     private final InputState input = new InputState();
@@ -798,29 +802,27 @@ public class GameScreen extends StackPane {
     }
 
     private void drawOffice(GraphicsContext gc) {
-        gc.setFill(Color.web("#f8f3e8"));
+        gc.setFill(Color.web("#f3ecdf"));
         gc.fillRect(0, 0, WIDTH, HEIGHT);
         gc.setFill(Color.rgb(255, 255, 255, 0.16));
         gc.fillRect(0, 0, WIDTH, 46);
         gc.setFill(Color.rgb(8, 10, 18, 0.12));
         gc.fillRect(0, 46, WIDTH, 3);
 
-        fillAreaWithTile(gc, openSpaceFloorTile, 40, 70, 520, 300, 64);
-        fillAreaWithTile(gc, meetingFloorTile, 590, 70, 300, 220, 64);
-        fillAreaWithTile(gc, kitchenFloorTile, 920, 70, 300, 220, 64);
-        fillAreaWithTile(gc, directorFloorTile, 780, 330, 440, 260, 64);
+        drawGridFloor(gc, OPEN_SPACE_ROOM, Color.web("#8f949f"), Color.web("#d7dae0"), 40);
+        drawMeetingFloor(gc, MEETING_ROOM);
+        drawKitchenFloor(gc, KITCHEN_ROOM);
+        drawWoodFloor(gc, DIRECTOR_ROOM, Color.web("#8c5a2e"), Color.web("#c58c4c"));
 
-        gc.setStroke(Color.web("#4f5d75"));
-        gc.setLineWidth(4);
-        gc.strokeRect(40, 70, 520, 300);
-        gc.strokeRect(590, 70, 300, 220);
-        gc.strokeRect(920, 70, 300, 220);
-        gc.strokeRect(780, 330, 440, 260);
+        drawRoomFrame(gc, OPEN_SPACE_ROOM, Color.web("#475569"));
+        drawRoomFrame(gc, MEETING_ROOM, Color.web("#475569"));
+        drawRoomFrame(gc, KITCHEN_ROOM, Color.web("#475569"));
+        drawRoomFrame(gc, DIRECTOR_ROOM, Color.web("#475569"));
 
-        drawRoomBadge(gc, 58, 82, "OPEN SPACE", Color.web("#60a5fa"));
-        drawRoomBadge(gc, 608, 82, "MEETING ROOM", Color.web("#8b5cf6"));
-        drawRoomBadge(gc, 938, 82, "KITCHEN", Color.web("#f59e0b"));
-        drawRoomBadge(gc, 798, 342, "DIRECTOR'S OFFICE", Color.web("#10b981"));
+        drawRoomBadge(gc, 58, 84, "OPEN SPACE", Color.web("#60a5fa"));
+        drawRoomBadge(gc, 608, 84, "MEETING ROOM", Color.web("#8b5cf6"));
+        drawRoomBadge(gc, 948, 84, "KITCHEN", Color.web("#f59e0b"));
+        drawRoomBadge(gc, 778, 326, "DIRECTOR'S OFFICE", Color.web("#10b981"));
 
         gc.setStroke(Color.rgb(59, 73, 97, 0.4));
         gc.setLineWidth(2);
@@ -939,69 +941,69 @@ public class GameScreen extends StackPane {
                 .anyMatch(zone -> zone.contains(player.centerX(), player.centerY()));
         double urgencyPulse = 0.76 + 0.24 * (Math.sin(animationClock * 5.0) + 1) / 2.0;
 
-        drawPanel(gc, 20, 588, 338, 112, Color.web("#f97316"));
-        drawPanel(gc, 370, 532, 244, 168, Color.web("#22c55e"));
-        drawPanel(gc, 626, 588, 324, 112, Color.web("#60a5fa"));
-        drawPanel(gc, 962, 588, 278, 112, Color.web("#a78bfa"));
+        drawPanel(gc, 20, 596, 330, 108, Color.web("#f97316"));
+        drawPanel(gc, 364, 596, 248, 108, Color.web("#22c55e"));
+        drawPanel(gc, 626, 596, 334, 108, Color.web("#60a5fa"));
+        drawPanel(gc, 974, 596, 266, 108, Color.web("#a78bfa"));
 
         gc.setFill(Color.web("#fff7ed"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 17));
-        gc.fillText("Office Cat", 36, 614);
+        gc.fillText("Office Cat", 36, 622);
 
         gc.setFont(Font.font("Verdana", 13));
-        gc.fillText(String.format("Time %02d:%02d", (int) timeLeft / 60, (int) timeLeft % 60), 36, 638);
-        gc.fillText(String.format("Productivity %.0f%%", officeProductivity * 100), 196, 638);
-        gc.fillText(player.isHidden() ? "Status Hidden in a box" : "Status Causing trouble", 36, 658);
+        gc.fillText(String.format("Time %02d:%02d", (int) timeLeft / 60, (int) timeLeft % 60), 36, 646);
+        gc.fillText(String.format("Productivity %.0f%%", officeProductivity * 100), 194, 646);
+        gc.fillText(player.isHidden() ? "Status Hidden in a box" : "Status Causing trouble", 36, 666);
         gc.fillText(comboCount > 1 && comboTimer > 0
                 ? String.format("Combo x%d %.1fs", comboCount, comboTimer)
-                : "Chain actions for combo", 36, 678);
+                : "Chain actions for combo", 36, 686);
         gc.fillText(player.isDashReady()
                 ? "Dash Ready [Shift]"
-                : String.format("Dash %.1fs", player.dashCooldownRemaining()), 196, 678);
+                : String.format("Dash %.1fs", player.dashCooldownRemaining()), 194, 686);
         gc.fillText(insideDangerZone
                 ? "Danger Zone Active"
                 : (meowCooldownRemaining <= 0
                 ? "Meow Ready [Space]"
-                : String.format("Meow %.1fs", meowCooldownRemaining)), 36, 696);
+                : String.format("Meow %.1fs", meowCooldownRemaining)), 36, 700);
         gc.fillText(player.isZoomiesActive()
                 ? String.format("Zoomies %.1fs", player.zoomiesTimeRemaining())
-                : "Find support spots for bonuses", 196, 696);
+                : "Find support spots for bonuses", 194, 700);
 
         Color chaosColor = chaosPercent >= 80
                 ? Color.web("#fb7185").deriveColor(0, 1, urgencyPulse, 1)
                 : Color.web("#ef4444");
-        drawLabeledBar(gc, 36, 548, 322, 18, chaosPercent / 100.0, chaosColor, "Chaos " + String.format("%.0f%%", chaosPercent));
-        drawLabeledBar(gc, 380, 548, 224, 18, officeProductivity, officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD
+        drawLabeledBar(gc, 380, 618, 216, 18, officeProductivity, officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD
                 ? Color.web("#22c55e")
                 : Color.web("#f59e0b"), "Office Flow");
+        drawLabeledBar(gc, 380, 648, 216, 18, chaosPercent / 100.0, chaosColor, "Chaos " + String.format("%.0f%%", chaosPercent));
 
         gc.setFill(Color.web("#ede9fe"));
         gc.setFont(Font.font("Verdana", 12));
-        gc.fillText("Manager Watch", 978, 614);
-        gc.fillText(manager.statusText(), 978, 636);
-        gc.fillText(String.format("Pressure %.0f%%", currentChaosPressure() * 50), 978, 658);
-        gc.fillText("WASD move  E interact", 978, 678);
-        gc.fillText("Shift dash  Space meow", 978, 696);
+        gc.fillText("Manager Watch", 990, 622);
+        gc.fillText(manager.statusText(), 990, 644);
+        gc.fillText(String.format("Pressure %.0f%%", currentChaosPressure() * 50), 990, 666);
+        gc.fillText("WASD move  E interact", 990, 688);
+        gc.fillText("Shift dash  Space meow", 990, 704);
 
         gc.setFill(Color.web("#dbeafe"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.fillText("Current Objective", 642, 614);
+        gc.fillText("Current Objective", 642, 622);
         gc.setFill(Color.web("#93c5fd").deriveColor(0, 1, 0.85 + 0.15 * urgencyPulse, 1));
-        gc.fillOval(916, 603, 12, 12);
+        gc.fillOval(922, 610, 12, 12);
         gc.setFont(Font.font("Verdana", 12));
         if (currentObjective != null) {
             gc.setFill(Color.web("#dbeafe"));
-            gc.fillText(currentObjective.title(), 642, 638);
-            gc.fillText(currentObjective.description(), 642, 662);
+            gc.fillText(currentObjective.title(), 642, 646);
+            gc.fillText(currentObjective.description(), 642, 670);
             gc.setFill(Color.web("#93c5fd"));
-            gc.fillText(String.format("Reward +%.0f chaos", currentObjective.bonusChaos()), 642, 686);
+            gc.fillText(String.format("Reward +%.0f chaos", currentObjective.bonusChaos()), 642, 694);
         }
     }
 
     private void drawIncidentFeed(GraphicsContext gc) {
         gc.setFill(Color.web("#ede9fe"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.fillText("Recent Incidents", 978, 614);
+        gc.fillText("Recent Incidents", 990, 622);
         gc.setFont(Font.font("Verdana", 11));
 
         int line = 0;
@@ -1010,7 +1012,7 @@ public class GameScreen extends StackPane {
                 break;
             }
             gc.setFill(Color.web("#f5f3ff").deriveColor(0, 1, 1, entry.alpha()));
-            gc.fillText("- " + entry.text(), 978, 636 + line * 18);
+            gc.fillText("- " + entry.text(), 990, 640 + line * 18);
             line++;
         }
     }
@@ -1132,6 +1134,79 @@ public class GameScreen extends StackPane {
         gc.fillText(label, x + 12, y + 20);
     }
 
+    private void drawRoomFrame(GraphicsContext gc, Rect room, Color strokeColor) {
+        gc.setStroke(strokeColor);
+        gc.setLineWidth(4);
+        gc.strokeRect(room.x(), room.y(), room.width(), room.height());
+        gc.setStroke(Color.rgb(255, 255, 255, 0.18));
+        gc.setLineWidth(1);
+        gc.strokeRect(room.x() + 5, room.y() + 5, room.width() - 10, room.height() - 10);
+    }
+
+    private void drawGridFloor(GraphicsContext gc, Rect room, Color base, Color lineColor, double tileSize) {
+        gc.setFill(base);
+        gc.fillRect(room.x(), room.y(), room.width(), room.height());
+
+        gc.setStroke(lineColor);
+        gc.setLineWidth(1.4);
+        for (double x = room.x(); x <= room.x() + room.width(); x += tileSize) {
+            gc.strokeLine(x, room.y(), x, room.y() + room.height());
+        }
+        for (double y = room.y(); y <= room.y() + room.height(); y += tileSize) {
+            gc.strokeLine(room.x(), y, room.x() + room.width(), y);
+        }
+
+        gc.setStroke(Color.rgb(30, 41, 59, 0.22));
+        gc.setLineWidth(2);
+        for (double x = room.x() + tileSize / 2.0; x < room.x() + room.width(); x += tileSize) {
+            gc.strokeLine(x, room.y(), x, room.y() + room.height());
+        }
+    }
+
+    private void drawMeetingFloor(GraphicsContext gc, Rect room) {
+        gc.setFill(Color.web("#5b6b87"));
+        gc.fillRect(room.x(), room.y(), room.width(), room.height());
+        gc.setStroke(Color.rgb(255, 255, 255, 0.12));
+        gc.setLineWidth(2);
+        for (double y = room.y() + 8; y < room.y() + room.height(); y += 20) {
+            gc.strokeLine(room.x() + 8, y, room.x() + room.width() - 8, y);
+        }
+        gc.setStroke(Color.rgb(17, 24, 39, 0.18));
+        for (double x = room.x() + 18; x < room.x() + room.width(); x += 28) {
+            gc.strokeLine(x, room.y() + 8, x, room.y() + room.height() - 8);
+        }
+    }
+
+    private void drawKitchenFloor(GraphicsContext gc, Rect room) {
+        gc.setFill(Color.web("#ebf4df"));
+        gc.fillRect(room.x(), room.y(), room.width(), room.height());
+        gc.setStroke(Color.web("#a3b18a"));
+        gc.setLineWidth(2);
+        for (double y = room.y(); y <= room.y() + room.height(); y += 30) {
+            gc.strokeLine(room.x(), y, room.x() + room.width(), y);
+        }
+        for (double x = room.x(); x <= room.x() + room.width(); x += 30) {
+            gc.strokeLine(x, room.y(), x, room.y() + room.height());
+        }
+        gc.setFill(Color.rgb(255, 255, 255, 0.12));
+        gc.fillRect(room.x(), room.y(), room.width(), room.height() * 0.25);
+    }
+
+    private void drawWoodFloor(GraphicsContext gc, Rect room, Color base, Color accent) {
+        gc.setFill(base);
+        gc.fillRect(room.x(), room.y(), room.width(), room.height());
+        gc.setStroke(accent);
+        gc.setLineWidth(3);
+        for (double x = room.x() + 2; x < room.x() + room.width(); x += 42) {
+            gc.strokeLine(x, room.y(), x, room.y() + room.height());
+        }
+        gc.setStroke(Color.rgb(255, 230, 180, 0.22));
+        gc.setLineWidth(1);
+        for (double y = room.y() + 18; y < room.y() + room.height(); y += 42) {
+            gc.strokeLine(room.x(), y, room.x() + room.width(), y);
+        }
+    }
+
     private void drawPanel(GraphicsContext gc, double x, double y, double width, double height, Color accent) {
         gc.setFill(Color.rgb(6, 10, 18, 0.26));
         gc.fillRoundRect(x + 4, y + 6, width, height, 20, 20);
@@ -1168,12 +1243,12 @@ public class GameScreen extends StackPane {
 
     private void drawBottomPrompt(GraphicsContext gc, String text, Color accent, double width) {
         double x = (WIDTH - width) / 2.0;
-        drawPanel(gc, x, 650, width, 42, accent);
+        drawPanel(gc, x, 546, width, 40, accent);
         gc.setFill(Color.web("#fff7ed"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
-        gc.fillText(text, WIDTH / 2.0, 671);
+        gc.fillText(text, WIDTH / 2.0, 566);
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.BASELINE);
     }
@@ -1195,43 +1270,40 @@ public class GameScreen extends StackPane {
     }
 
     private void drawFurniture(GraphicsContext gc) {
-        drawCenteredSprite(gc, deskSprite, 360, 157, PROP_XL);
-        drawCenteredSprite(gc, deskSprite, 360, 252, PROP_XL);
-        drawCenteredSprite(gc, meetingTableSprite, 735, 180, 290);
-        drawCenteredSprite(gc, cabinetSprite, 1040, 150, PROP_LARGE);
-        drawCenteredSprite(gc, deskSprite, 1045, 430, PROP_XL);
-        drawCenteredSprite(gc, cabinetSprite, 1095, 520, PROP_LARGE);
-        drawCenteredSprite(gc, cabinetSprite, 250, 470, PROP_XL);
-        drawCenteredSprite(gc, cabinetSprite, 260, 578, PROP_LARGE);
-        drawCenteredSprite(gc, cabinetSprite, 595, 578, PROP_MEDIUM);
+        drawCenteredSprite(gc, deskSprite, 385, 162, 236);
+        drawCenteredSprite(gc, deskSprite, 385, 265, 236);
+        drawCenteredSprite(gc, meetingTableSprite, 745, 183, 278);
+        drawCenteredSprite(gc, cabinetSprite, 1068, 164, 148);
+        drawCenteredSprite(gc, deskSprite, 1058, 402, 244);
+        drawCenteredSprite(gc, cabinetSprite, 1190, 442, 122);
+        drawCenteredSprite(gc, cabinetSprite, 820, 438, 116);
 
-        drawCenteredSprite(gc, chairSprite, 170, 175, PROP_SMALL);
-        drawCenteredSprite(gc, chairSprite, 170, 272, PROP_SMALL);
-        drawCenteredSprite(gc, chairSprite, 980, 525, PROP_SMALL);
+        drawCenteredSprite(gc, chairSprite, 260, 214, 46);
+        drawCenteredSprite(gc, chairSprite, 260, 318, 46);
+        drawCenteredSprite(gc, chairSprite, 874, 478, 46);
 
-        drawCenteredSprite(gc, plantSprite, 530, 330, PROP_SMALL);
-        drawCenteredSprite(gc, plantSprite, 1210, 270, PROP_SMALL);
-        drawCenteredSprite(gc, plantSprite, 795, 575, PROP_SMALL);
+        drawCenteredSprite(gc, plantSprite, 528, 316, 52);
+        drawCenteredSprite(gc, plantSprite, 1192, 256, 52);
+        drawCenteredSprite(gc, plantSprite, 782, 520, 52);
     }
 
     private void buildOfficeLayout() {
-        walls.add(new Rect(250, 140, 220, 34));
-        walls.add(new Rect(250, 235, 220, 34));
-        walls.add(new Rect(650, 150, 180, 34));
-        walls.add(new Rect(980, 150, 160, 34));
-        walls.add(new Rect(920, 410, 220, 34));
-        walls.add(new Rect(120, 450, 540, 32));
-        walls.add(new Rect(120, 560, 280, 32));
-        walls.add(new Rect(540, 560, 120, 32));
+        walls.add(new Rect(286, 135, 204, 46));
+        walls.add(new Rect(286, 238, 204, 46));
+        walls.add(new Rect(654, 128, 186, 112));
+        walls.add(new Rect(966, 132, 196, 52));
+        walls.add(new Rect(946, 360, 224, 54));
+        walls.add(new Rect(1130, 414, 86, 78));
+        walls.add(new Rect(786, 408, 76, 88));
 
-        hideSpots.add(new HideSpot(120, 340, 68, "storage box"));
-        hideSpots.add(new HideSpot(916, 175, 68, "meeting room box"));
-        hideSpots.add(new HideSpot(1180, 520, 68, "director archive box"));
+        hideSpots.add(new HideSpot(122, 304, 68, "storage box"));
+        hideSpots.add(new HideSpot(904, 216, 68, "meeting room box"));
+        hideSpots.add(new HideSpot(1172, 470, 68, "director archive box"));
 
         supportSpots.add(new CatSupportSpot(
                 "snack",
-                1046,
-                248,
+                1068,
+                236,
                 "Grab a kitchen snack to refresh dash and meow",
                 "Snack station",
                 16.0,
@@ -1240,8 +1312,8 @@ public class GameScreen extends StackPane {
         ));
         supportSpots.add(new CatSupportSpot(
                 "sunbeam",
-                790,
-                540,
+                812,
+                500,
                 "Stretch in the sunbeam for temporary zoomies",
                 "Sunbeam boost",
                 18.0,
@@ -1251,7 +1323,7 @@ public class GameScreen extends StackPane {
 
         interactions.add(new ChaosInteraction(
                 "keyboard",
-                360, 157,
+                452, 176,
                 "Nap on a developer keyboard",
                 "keyboard chaos",
                 18,
@@ -1263,7 +1335,7 @@ public class GameScreen extends StackPane {
         ));
         interactions.add(new ChaosInteraction(
                 "mug",
-                1040, 165,
+                1128, 183,
                 "Push a coffee mug off the kitchen counter",
                 "spilled coffee",
                 12,
@@ -1275,7 +1347,7 @@ public class GameScreen extends StackPane {
         ));
         interactions.add(new ChaosInteraction(
                 "wifi",
-                1010, 430,
+                988, 390,
                 "Disable the office Wi-Fi router",
                 "Wi-Fi outage",
                 26,
@@ -1287,7 +1359,7 @@ public class GameScreen extends StackPane {
         ));
         interactions.add(new ChaosInteraction(
                 "meeting",
-                730, 165,
+                744, 254,
                 "Meow during the online meeting",
                 "meeting disruption",
                 16,
@@ -1299,7 +1371,7 @@ public class GameScreen extends StackPane {
         ));
         interactions.add(new ChaosInteraction(
                 "papers",
-                1110, 430,
+                1116, 380,
                 "Scatter the director's paperwork",
                 "paper catastrophe",
                 20,
@@ -1310,10 +1382,10 @@ public class GameScreen extends StackPane {
                 Color.web("#10b981")
         ));
 
-        employees.add(new EmployeeNpc("Mila", 165, 155, Color.web("#3b82f6")));
-        employees.add(new EmployeeNpc("Jon", 160, 250, Color.web("#22c55e")));
-        employees.add(new EmployeeNpc("Ava", 720, 185, Color.web("#f97316")));
-        employees.add(new EmployeeNpc("Noah", 960, 505, Color.web("#ec4899")));
+        employees.add(new EmployeeNpc("Mila", 212, 215, Color.web("#3b82f6")));
+        employees.add(new EmployeeNpc("Jon", 212, 318, Color.web("#22c55e")));
+        employees.add(new EmployeeNpc("Ava", 744, 254, Color.web("#f97316")));
+        employees.add(new EmployeeNpc("Noah", 884, 476, Color.web("#ec4899")));
     }
 
     private void addIncident(String text) {
