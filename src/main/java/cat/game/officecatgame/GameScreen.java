@@ -140,10 +140,12 @@ public class GameScreen extends StackPane {
     private double dangerZoneCreateCooldown;
     private double dangerExposureTimer;
     private double productivityCascadeTicker;
+    private double keyboardNapTimer;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
     private double officeProductivity = 1.0;
+    private Point keyboardNapExitPoint = new Point(0, 0);
     private int comboCount;
     private int objectiveIndex;
     private ChaosObjective currentObjective;
@@ -199,15 +201,18 @@ public class GameScreen extends StackPane {
             comboTimer = Math.max(0, comboTimer - deltaSeconds);
             meowCooldownRemaining = Math.max(0, meowCooldownRemaining - deltaSeconds);
             dangerZoneCreateCooldown = Math.max(0, dangerZoneCreateCooldown - deltaSeconds);
+            updateKeyboardNap(deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
             shakePhase += deltaSeconds * 34;
             if (comboTimer == 0) {
                 comboCount = 0;
             }
-            handleDashInput();
-            handleMeowInput();
-            player.update(input, deltaSeconds, walls);
-            handleInteractionAttempt();
+            if (!isPlayerLocked()) {
+                handleDashInput();
+                handleMeowInput();
+                player.update(input, deltaSeconds, walls);
+                handleInteractionAttempt();
+            }
             updateChaosEvents(deltaSeconds);
             updateDangerZones(deltaSeconds);
             updateFloatingTexts(deltaSeconds);
@@ -324,6 +329,7 @@ public class GameScreen extends StackPane {
         dangerZoneCreateCooldown = 0;
         dangerExposureTimer = 0;
         productivityCascadeTicker = 0;
+        keyboardNapTimer = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -339,6 +345,7 @@ public class GameScreen extends StackPane {
         player.setHidden(false);
         player.clearTemporaryEffects();
         activeHideSpot = null;
+        keyboardNapExitPoint = new Point(0, 0);
         chaosEvents.clear();
         dangerZones.clear();
         floatingTexts.clear();
@@ -375,6 +382,9 @@ public class GameScreen extends StackPane {
                     useSupportSpot(nearestSupportSpot);
                 } else if (nearest != null && nearest.canTrigger()) {
                     nearest.trigger();
+                    if ("keyboard".equals(nearest.id())) {
+                        startKeyboardNap(nearest);
+                    }
                     double chaosGain = applyCombo(nearest);
                     chaosPercent = Math.min(100, chaosPercent + chaosGain);
                     chaosEvents.add(new ChaosEvent(
@@ -540,6 +550,32 @@ public class GameScreen extends StackPane {
         addShake(2.2);
     }
 
+    private void startKeyboardNap(ChaosInteraction interaction) {
+        keyboardNapTimer = 1.45;
+        keyboardNapExitPoint = new Point(interaction.x() - 210, interaction.y() + 18);
+        floatingTexts.add(new FloatingText(
+                "Power nap!",
+                interaction.x(),
+                interaction.y() - 58,
+                Color.web("#fde68a"),
+                1.0
+        ));
+    }
+
+    private void updateKeyboardNap(double deltaSeconds) {
+        if (keyboardNapTimer <= 0) {
+            return;
+        }
+        keyboardNapTimer = Math.max(0, keyboardNapTimer - deltaSeconds);
+        if (keyboardNapTimer == 0) {
+            player.setPosition(keyboardNapExitPoint.x(), keyboardNapExitPoint.y());
+        }
+    }
+
+    private boolean isPlayerLocked() {
+        return keyboardNapTimer > 0;
+    }
+
     private void updateChaosEvents(double deltaSeconds) {
         chaosEvents.forEach(event -> event.update(deltaSeconds));
         chaosEvents.removeIf(event -> !event.isActive());
@@ -562,7 +598,13 @@ public class GameScreen extends StackPane {
 
     private void updateNpcs(double deltaSeconds) {
         for (EmployeeNpc employee : employees) {
-            employee.update(deltaSeconds, player, strongestEventNear(employee.x(), employee.y(), 165), walls);
+            employee.update(
+                    deltaSeconds,
+                    player,
+                    resolveNpcTarget(employee.x(), employee.y(), player.centerX(), player.centerY()),
+                    resolveEventForNpc(employee.x(), employee.y(), strongestEventNear(employee.x(), employee.y(), 165)),
+                    walls
+            );
             if (employee.canReportCat(player)) {
                 employee.markReportUsed();
                 chaosEvents.add(new ChaosEvent(
@@ -583,8 +625,15 @@ public class GameScreen extends StackPane {
                 ));
             }
         }
-        ChaosEvent managerEvent = strongestEventNear(manager.x(), manager.y(), 260);
-        manager.update(deltaSeconds, player, managerEvent, currentChaosPressure(), walls);
+        ChaosEvent managerEvent = resolveEventForNpc(manager.x(), manager.y(), strongestEventNear(manager.x(), manager.y(), 260));
+        manager.update(
+                deltaSeconds,
+                player,
+                resolveNpcTarget(manager.x(), manager.y(), player.centerX(), player.centerY()),
+                managerEvent,
+                currentChaosPressure(),
+                walls
+        );
 
         if (managerEvent != null
                 && manager.mode() == ManagerNpc.Mode.INVESTIGATING
@@ -670,6 +719,86 @@ public class GameScreen extends StackPane {
             pressure += 0.45;
         }
         return Math.min(2.0, pressure);
+    }
+
+    private ChaosEvent resolveEventForNpc(double actorX, double actorY, ChaosEvent event) {
+        if (event == null) {
+            return null;
+        }
+        Point target = resolveNpcTarget(actorX, actorY, event.x(), event.y());
+        if (target.x() == event.x() && target.y() == event.y()) {
+            return event;
+        }
+        return new ChaosEvent(event.label(), target.x(), target.y(), event.radius(), event.severity(), event.timeLeft());
+    }
+
+    private Point resolveNpcTarget(double actorX, double actorY, double targetX, double targetY) {
+        Rect actorRoom = roomAt(actorX, actorY);
+        Rect targetRoom = roomAt(targetX, targetY);
+
+        if (actorRoom == targetRoom) {
+            return new Point(targetX, targetY);
+        }
+
+        if (actorRoom != null) {
+            Point insideDoor = roomDoorInsidePoint(actorRoom);
+            if (Math.hypot(actorX - insideDoor.x(), actorY - insideDoor.y()) > 26) {
+                return insideDoor;
+            }
+            return roomDoorHallPoint(actorRoom);
+        }
+
+        if (targetRoom != null) {
+            Point hallPoint = roomDoorHallPoint(targetRoom);
+            if (Math.hypot(actorX - hallPoint.x(), actorY - hallPoint.y()) > 32) {
+                return hallPoint;
+            }
+            return roomDoorInsidePoint(targetRoom);
+        }
+
+        return new Point(targetX, targetY);
+    }
+
+    private Rect roomAt(double x, double y) {
+        if (contains(OPEN_SPACE_ROOM, x, y)) {
+            return OPEN_SPACE_ROOM;
+        }
+        if (contains(MEETING_ROOM, x, y)) {
+            return MEETING_ROOM;
+        }
+        if (contains(KITCHEN_ROOM, x, y)) {
+            return KITCHEN_ROOM;
+        }
+        if (contains(DIRECTOR_ROOM, x, y)) {
+            return DIRECTOR_ROOM;
+        }
+        return null;
+    }
+
+    private Point roomDoorHallPoint(Rect room) {
+        if (room == OPEN_SPACE_ROOM) {
+            return new Point(OPEN_SPACE_DOOR_X, OPEN_SPACE_ROOM.y() + OPEN_SPACE_ROOM.height() + 38);
+        }
+        if (room == MEETING_ROOM) {
+            return new Point(MEETING_DOOR_X, MEETING_ROOM.y() + MEETING_ROOM.height() + 38);
+        }
+        if (room == KITCHEN_ROOM) {
+            return new Point(KITCHEN_DOOR_X, KITCHEN_ROOM.y() + KITCHEN_ROOM.height() + 38);
+        }
+        return new Point(DIRECTOR_DOOR_X, DIRECTOR_ROOM.y() - 34);
+    }
+
+    private Point roomDoorInsidePoint(Rect room) {
+        if (room == OPEN_SPACE_ROOM) {
+            return new Point(OPEN_SPACE_DOOR_X, OPEN_SPACE_ROOM.y() + OPEN_SPACE_ROOM.height() - 40);
+        }
+        if (room == MEETING_ROOM) {
+            return new Point(MEETING_DOOR_X, MEETING_ROOM.y() + MEETING_ROOM.height() - 40);
+        }
+        if (room == KITCHEN_ROOM) {
+            return new Point(KITCHEN_DOOR_X, KITCHEN_ROOM.y() + KITCHEN_ROOM.height() - 40);
+        }
+        return new Point(DIRECTOR_DOOR_X, DIRECTOR_ROOM.y() + 40);
     }
 
     private ChaosEvent strongestEventNear(double x, double y, double maxDistance) {
@@ -961,6 +1090,9 @@ public class GameScreen extends StackPane {
     }
 
     private void drawPlayer(GraphicsContext gc) {
+        if (isPlayerLocked()) {
+            return;
+        }
         Image sprite = player.isHidden() ? catHideSprite : currentCatSprite();
         drawCenteredSprite(gc, sprite, player.centerX(), player.centerY(), PLAYER_DRAW_SIZE);
     }
@@ -1562,7 +1694,7 @@ public class GameScreen extends StackPane {
 
     private Image interactionSprite(ChaosInteraction interaction) {
         return switch (interaction.id()) {
-            case "keyboard" -> interaction.canTrigger() ? keyboardSprite : sleepingKeyboardSprite;
+            case "keyboard" -> keyboardNapTimer > 0 ? sleepingKeyboardSprite : keyboardSprite;
             case "mug" -> interaction.canTrigger() ? mugSprite : mugSpilledSprite;
             case "wifi" -> wifiRouterSprite;
             case "papers" -> interaction.canTrigger() ? papersSprite : papersScatteredSprite;

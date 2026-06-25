@@ -39,7 +39,14 @@ public class ManagerNpc {
         investigateTimer = 0;
     }
 
-    public void update(double deltaSeconds, PlayerCat player, ChaosEvent strongestEvent, double chaosPressure, List<Rect> walls) {
+    public void update(
+            double deltaSeconds,
+            PlayerCat player,
+            Point playerTarget,
+            ChaosEvent strongestEvent,
+            double chaosPressure,
+            List<Rect> walls
+    ) {
         double patrolSpeed = PATROL_SPEED + chaosPressure * 14;
         double chaseSpeed = CHASE_SPEED + chaosPressure * 22;
         double sightRange = 145 + chaosPressure * 26;
@@ -52,7 +59,7 @@ public class ManagerNpc {
         } else if (canSeePlayer(player, sightRange)) {
             mode = Mode.CHASING;
             statusText = chaosPressure >= 1.5 ? "Full panic pursuit!" : "Chasing the cat!";
-            moveToward(player.x(), player.y(), chaseSpeed, deltaSeconds, walls);
+            moveToward(playerTarget.x(), playerTarget.y(), chaseSpeed, deltaSeconds, walls);
         } else if (investigateTimer > 0) {
             investigateTimer = Math.max(0, investigateTimer - deltaSeconds);
             moveToward(currentPatrolPoint().x(), currentPatrolPoint().y(), patrolSpeed, deltaSeconds, walls);

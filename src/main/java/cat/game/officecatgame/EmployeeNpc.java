@@ -50,6 +50,7 @@ public class EmployeeNpc {
     private double targetY;
     private double productivity = 1.0;
     private double reportCooldown;
+    private double wanderTimer;
 
     public EmployeeNpc(String name, double x, double y, Color color) {
         this.name = name;
@@ -72,10 +73,12 @@ public class EmployeeNpc {
         targetY = homeY;
         productivity = 1.0;
         reportCooldown = 0;
+        wanderTimer = 0;
     }
 
-    public void update(double deltaSeconds, PlayerCat player, ChaosEvent strongestEvent, List<Rect> walls) {
+    public void update(double deltaSeconds, PlayerCat player, Point playerTarget, ChaosEvent strongestEvent, List<Rect> walls) {
         reportCooldown = Math.max(0, reportCooldown - deltaSeconds);
+        wanderTimer = Math.max(0, wanderTimer - deltaSeconds);
 
         if (strongestEvent != null) {
             reactToEvent(strongestEvent);
@@ -85,8 +88,8 @@ public class EmployeeNpc {
             state = State.PANICKING;
             reactionText = pickLine(SPOTTED_LINES, name.hashCode());
             reactionTimer = 2.4;
-            targetX = player.x();
-            targetY = player.y();
+            targetX = playerTarget.x();
+            targetY = playerTarget.y();
             productivity = 0.1;
         }
 
@@ -103,7 +106,11 @@ public class EmployeeNpc {
         if (state == State.INVESTIGATING || state == State.PANICKING) {
             moveToward(targetX, targetY, state == State.PANICKING ? INSPECT_SPEED : WALK_SPEED, deltaSeconds, walls);
         } else if (state == State.WORKING) {
-            moveToward(homeX, homeY, WALK_SPEED, deltaSeconds, walls);
+            if (wanderTimer == 0 || distanceTo(targetX, targetY) < 12) {
+                chooseWanderTarget();
+            }
+            reactionText = distanceTo(homeX, homeY) < 20 ? "Focused" : "Stretching legs";
+            moveToward(targetX, targetY, WALK_SPEED * 0.65, deltaSeconds, walls);
         }
     }
 
@@ -182,6 +189,15 @@ public class EmployeeNpc {
 
     private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private void chooseWanderTarget() {
+        int seed = (int) (System.nanoTime() + name.hashCode() * 31L);
+        double offsetX = ((Math.floorMod(seed, 9)) - 4) * 12;
+        double offsetY = ((Math.floorMod(seed / 7, 9)) - 4) * 10;
+        targetX = homeX + offsetX;
+        targetY = homeY + offsetY;
+        wanderTimer = 2.2;
     }
 
     public double distanceTo(double px, double py) {
