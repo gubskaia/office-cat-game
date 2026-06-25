@@ -82,6 +82,18 @@ public class GameScreen extends StackPane {
             new ChaosObjective("papers", "Executive Mess", "Scatter the director's paperwork", 9)
     );
     private final List<EmployeeNpc> employees = new ArrayList<>();
+    private final List<Point> investigationNodes = List.of(
+            new Point(334, 244),
+            new Point(334, 386),
+            new Point(OPEN_SPACE_DOOR_X, 520),
+            new Point(1120, 314),
+            new Point(MEETING_DOOR_X, 520),
+            new Point(1694, 246),
+            new Point(KITCHEN_DOOR_X, 520),
+            new Point(1288, 742),
+            new Point(1512, 604),
+            new Point(DIRECTOR_DOOR_X, 520)
+    );
     private final List<Point> managerPatrolPath = List.of(
             new Point(250, 520),
             new Point(760, 520),
@@ -625,7 +637,7 @@ public class GameScreen extends StackPane {
                 ));
             }
         }
-        ChaosEvent managerEvent = resolveEventForNpc(manager.x(), manager.y(), strongestEventNear(manager.x(), manager.y(), 260));
+        ChaosEvent managerEvent = resolveManagerEvent(strongestEventNear(manager.x(), manager.y(), 260));
         manager.update(
                 deltaSeconds,
                 player,
@@ -732,6 +744,14 @@ public class GameScreen extends StackPane {
         return new ChaosEvent(event.label(), target.x(), target.y(), event.radius(), event.severity(), event.timeLeft());
     }
 
+    private ChaosEvent resolveManagerEvent(ChaosEvent event) {
+        if (event == null) {
+            return null;
+        }
+        Point node = nearestInvestigationNode(event.x(), event.y());
+        return new ChaosEvent(event.label(), node.x(), node.y(), event.radius(), event.severity(), event.timeLeft());
+    }
+
     private Point resolveNpcTarget(double actorX, double actorY, double targetX, double targetY) {
         Rect actorRoom = roomAt(actorX, actorY);
         Rect targetRoom = roomAt(targetX, targetY);
@@ -799,6 +819,26 @@ public class GameScreen extends StackPane {
             return new Point(KITCHEN_DOOR_X, KITCHEN_ROOM.y() + KITCHEN_ROOM.height() - 40);
         }
         return new Point(DIRECTOR_DOOR_X, DIRECTOR_ROOM.y() + 40);
+    }
+
+    private Point nearestInvestigationNode(double x, double y) {
+        Point best = new Point(x, y);
+        double bestDistance = Double.MAX_VALUE;
+        Rect eventRoom = roomAt(x, y);
+
+        for (Point node : investigationNodes) {
+            Rect nodeRoom = roomAt(node.x(), node.y());
+            boolean compatibleRoom = eventRoom == null || nodeRoom == eventRoom || nodeRoom == null;
+            if (!compatibleRoom) {
+                continue;
+            }
+            double distance = Math.hypot(node.x() - x, node.y() - y);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = node;
+            }
+        }
+        return best;
     }
 
     private ChaosEvent strongestEventNear(double x, double y, double maxDistance) {
@@ -1735,6 +1775,7 @@ public class GameScreen extends StackPane {
     private Image managerSprite() {
         return switch (manager.mode()) {
             case CHASING -> managerChaseFrames.isEmpty() ? managerIdleSprite : frameAt(managerChaseFrames, 8.0);
+            case SEARCHING -> managerAlertFrames.isEmpty() ? managerIdleSprite : frameAt(managerAlertFrames, 6.0);
             case INVESTIGATING -> managerAlertFrames.isEmpty() ? managerIdleSprite : frameAt(managerAlertFrames, 4.5);
             case PATROLLING -> managerWalkFrames.isEmpty() ? managerIdleSprite : frameAt(managerWalkFrames, 6.0);
         };

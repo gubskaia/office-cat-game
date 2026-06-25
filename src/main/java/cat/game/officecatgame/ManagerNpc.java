@@ -8,11 +8,14 @@ public class ManagerNpc {
     public enum Mode {
         PATROLLING,
         INVESTIGATING,
-        CHASING
+        CHASING,
+        SEARCHING
     }
 
     private static final double PATROL_SPEED = 95.0;
     private static final double CHASE_SPEED = 145.0;
+    private static final double SEARCH_SPEED = 118.0;
+    private static final double SEARCH_DURATION_SECONDS = 3.4;
     private static final double WIDTH = 32.0;
     private static final double HEIGHT = 32.0;
 
@@ -26,6 +29,9 @@ public class ManagerNpc {
     private double lastX;
     private double lastY;
     private double stuckTimer;
+    private double searchTimer;
+    private double lastKnownTargetX;
+    private double lastKnownTargetY;
 
     public ManagerNpc(double x, double y, List<Point> patrolPoints) {
         this.x = x;
@@ -43,6 +49,9 @@ public class ManagerNpc {
         lastX = x;
         lastY = y;
         stuckTimer = 0;
+        searchTimer = 0;
+        lastKnownTargetX = x;
+        lastKnownTargetY = y;
     }
 
     public void update(
@@ -65,7 +74,15 @@ public class ManagerNpc {
         } else if (canSeePlayer(player, sightRange)) {
             mode = Mode.CHASING;
             statusText = chaosPressure >= 1.5 ? "Full panic pursuit!" : "Chasing the cat!";
+            lastKnownTargetX = playerTarget.x();
+            lastKnownTargetY = playerTarget.y();
+            searchTimer = SEARCH_DURATION_SECONDS;
             moveToward(playerTarget.x(), playerTarget.y(), chaseSpeed, deltaSeconds, walls);
+        } else if (searchTimer > 0) {
+            searchTimer = Math.max(0, searchTimer - deltaSeconds);
+            mode = Mode.SEARCHING;
+            statusText = "Searching last known position";
+            moveToward(lastKnownTargetX, lastKnownTargetY, SEARCH_SPEED, deltaSeconds, walls);
         } else if (investigateTimer > 0) {
             investigateTimer = Math.max(0, investigateTimer - deltaSeconds);
             moveToward(currentPatrolPoint().x(), currentPatrolPoint().y(), patrolSpeed, deltaSeconds, walls);
