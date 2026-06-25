@@ -58,6 +58,10 @@ public class GameScreen extends StackPane {
     private static final Rect MEETING_ROOM = new Rect(920, 100, 420, 290);
     private static final Rect KITCHEN_ROOM = new Rect(1420, 100, 380, 290);
     private static final Rect DIRECTOR_ROOM = new Rect(1080, 520, 720, 320);
+    private static final double OPEN_SPACE_DOOR_X = 750;
+    private static final double MEETING_DOOR_X = 1084;
+    private static final double KITCHEN_DOOR_X = 1496;
+    private static final double DIRECTOR_DOOR_X = 1168;
 
     private final Canvas canvas = new Canvas(WIDTH, HEIGHT);
     private final InputState input = new InputState();
@@ -829,6 +833,7 @@ public class GameScreen extends StackPane {
         for (double x = 0; x < WORLD_WIDTH; x += 140) {
             gc.fillRect(x, 0, 2, WORLD_HEIGHT);
         }
+        drawCorridors(gc);
 
         drawGridFloor(gc, OPEN_SPACE_ROOM, Color.web("#8f949f"), Color.web("#d7dae0"), 40);
         drawMeetingFloor(gc, MEETING_ROOM);
@@ -844,6 +849,10 @@ public class GameScreen extends StackPane {
         drawRoomBadge(gc, MEETING_ROOM.x() + 18, MEETING_ROOM.y() + 12, "MEETING ROOM", Color.web("#8b5cf6"));
         drawRoomBadge(gc, KITCHEN_ROOM.x() + 18, KITCHEN_ROOM.y() + 12, "KITCHEN", Color.web("#f59e0b"));
         drawRoomBadge(gc, DIRECTOR_ROOM.x() + 18, DIRECTOR_ROOM.y() + 12, "DIRECTOR'S OFFICE", Color.web("#10b981"));
+        drawDoorway(gc, OPEN_SPACE_DOOR_X, OPEN_SPACE_ROOM.y() + OPEN_SPACE_ROOM.height(), false);
+        drawDoorway(gc, MEETING_DOOR_X, MEETING_ROOM.y() + MEETING_ROOM.height(), false);
+        drawDoorway(gc, KITCHEN_DOOR_X, KITCHEN_ROOM.y() + KITCHEN_ROOM.height(), false);
+        drawDoorway(gc, DIRECTOR_DOOR_X, DIRECTOR_ROOM.y(), true);
 
         gc.setStroke(Color.rgb(59, 73, 97, 0.4));
         gc.setLineWidth(2);
@@ -1120,11 +1129,14 @@ public class GameScreen extends StackPane {
 
     private void drawTopRibbon(GraphicsContext gc) {
         drawPanel(gc, 18, 10, 344, 42, Color.web("#f97316"));
+        drawPanel(gc, 388, 10, 276, 42, Color.web("#34d399"));
         drawPanel(gc, 1038, 10, 224, 42, Color.web("#60a5fa"));
 
         gc.setFill(Color.web("#fff7ed"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
         gc.fillText("OFFICE CAT // CHAOS SHIFT", 34, 36);
+        gc.setFill(Color.web("#d1fae5"));
+        gc.fillText(currentZoneLabel(), 406, 36);
 
         gc.setFill(Color.web("#dbeafe"));
         gc.setTextAlign(TextAlignment.RIGHT);
@@ -1143,6 +1155,31 @@ public class GameScreen extends StackPane {
         return "FINAL HOUR";
     }
 
+    private String currentZoneLabel() {
+        double px = player.centerX();
+        double py = player.centerY();
+        if (contains(OPEN_SPACE_ROOM, px, py)) {
+            return "CURRENT ZONE: OPEN SPACE";
+        }
+        if (contains(MEETING_ROOM, px, py)) {
+            return "CURRENT ZONE: MEETING ROOM";
+        }
+        if (contains(KITCHEN_ROOM, px, py)) {
+            return "CURRENT ZONE: KITCHEN";
+        }
+        if (contains(DIRECTOR_ROOM, px, py)) {
+            return "CURRENT ZONE: DIRECTOR'S OFFICE";
+        }
+        return "CURRENT ZONE: HALLWAY";
+    }
+
+    private boolean contains(Rect rect, double x, double y) {
+        return x >= rect.x()
+                && x <= rect.x() + rect.width()
+                && y >= rect.y()
+                && y <= rect.y() + rect.height();
+    }
+
     private void drawRoomBadge(GraphicsContext gc, double x, double y, String label, Color accent) {
         double width = Math.max(116, label.length() * 8.3 + 26);
         gc.setFill(Color.rgb(17, 24, 39, 0.88));
@@ -1152,6 +1189,32 @@ public class GameScreen extends StackPane {
         gc.setFill(Color.web("#fff7ed"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
         gc.fillText(label, x + 12, y + 20);
+    }
+
+    private void drawCorridors(GraphicsContext gc) {
+        gc.setFill(Color.web("#e3dccf"));
+        gc.fillRoundRect(120, 486, 1740, 126, 18, 18);
+        gc.fillRoundRect(1112, 392, 112, 144, 18, 18);
+        gc.setStroke(Color.rgb(148, 163, 184, 0.35));
+        gc.setLineWidth(2);
+        for (double x = 146; x < 1830; x += 54) {
+            gc.strokeLine(x, 548, x + 26, 548);
+        }
+        gc.setStroke(Color.rgb(255, 255, 255, 0.2));
+        gc.strokeRoundRect(120, 486, 1740, 126, 18, 18);
+    }
+
+    private void drawDoorway(GraphicsContext gc, double centerX, double baseY, boolean topSide) {
+        double width = 90;
+        double height = 18;
+        double y = topSide ? baseY - 4 : baseY - height + 4;
+        gc.setFill(Color.web("#d1b38a"));
+        gc.fillRoundRect(centerX - width / 2.0, y, width, height, 8, 8);
+        gc.setFill(Color.web("#8b5e34"));
+        gc.fillRect(centerX - width / 2.0 + 6, y + 4, width - 12, 4);
+        gc.setStroke(Color.rgb(255, 248, 220, 0.34));
+        gc.setLineWidth(1);
+        gc.strokeRoundRect(centerX - width / 2.0, y, width, height, 8, 8);
     }
 
     private void addRoomWalls(Rect room, double doorCenter, double doorSideY) {
@@ -1330,10 +1393,10 @@ public class GameScreen extends StackPane {
     }
 
     private void buildOfficeLayout() {
-        addRoomWalls(OPEN_SPACE_ROOM, OPEN_SPACE_ROOM.x() + OPEN_SPACE_ROOM.width() - 90, OPEN_SPACE_ROOM.y() + OPEN_SPACE_ROOM.height());
-        addRoomWalls(MEETING_ROOM, MEETING_ROOM.x() + 164, MEETING_ROOM.y() + MEETING_ROOM.height());
-        addRoomWalls(KITCHEN_ROOM, KITCHEN_ROOM.x() + 76, KITCHEN_ROOM.y() + KITCHEN_ROOM.height());
-        addRoomWalls(DIRECTOR_ROOM, DIRECTOR_ROOM.x() + 88, DIRECTOR_ROOM.y());
+        addRoomWalls(OPEN_SPACE_ROOM, OPEN_SPACE_DOOR_X, OPEN_SPACE_ROOM.y() + OPEN_SPACE_ROOM.height());
+        addRoomWalls(MEETING_ROOM, MEETING_DOOR_X, MEETING_ROOM.y() + MEETING_ROOM.height());
+        addRoomWalls(KITCHEN_ROOM, KITCHEN_DOOR_X, KITCHEN_ROOM.y() + KITCHEN_ROOM.height());
+        addRoomWalls(DIRECTOR_ROOM, DIRECTOR_DOOR_X, DIRECTOR_ROOM.y());
 
         walls.add(new Rect(402, 154, 234, 56));
         walls.add(new Rect(402, 296, 234, 56));
