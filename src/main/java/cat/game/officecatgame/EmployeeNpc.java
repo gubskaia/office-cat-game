@@ -5,6 +5,13 @@ import javafx.scene.paint.Color;
 import java.util.List;
 
 public class EmployeeNpc {
+    public enum Role {
+        DEVELOPER,
+        DESIGNER,
+        ANALYST,
+        LEAD
+    }
+
     private static final String[] INVESTIGATION_LINES = {
             "Checking the noise",
             "Who did that?",
@@ -37,6 +44,7 @@ public class EmployeeNpc {
     private static final double HEIGHT = 28.0;
 
     private final String name;
+    private final Role role;
     private final double homeX;
     private final double homeY;
     private final Color color;
@@ -52,10 +60,12 @@ public class EmployeeNpc {
     private double productivity = 1.0;
     private double reportCooldown;
     private double wanderTimer;
+    private double breakTimer;
     private int routineIndex;
 
-    public EmployeeNpc(String name, double x, double y, Color color, List<Point> routinePoints) {
+    public EmployeeNpc(String name, Role role, double x, double y, Color color, List<Point> routinePoints) {
         this.name = name;
+        this.role = role;
         this.homeX = x;
         this.homeY = y;
         this.x = x;
@@ -77,12 +87,14 @@ public class EmployeeNpc {
         productivity = 1.0;
         reportCooldown = 0;
         wanderTimer = 0;
+        breakTimer = 0;
         routineIndex = 0;
     }
 
     public void update(double deltaSeconds, PlayerCat player, Point playerTarget, ChaosEvent strongestEvent, List<Rect> walls) {
         reportCooldown = Math.max(0, reportCooldown - deltaSeconds);
         wanderTimer = Math.max(0, wanderTimer - deltaSeconds);
+        breakTimer = Math.max(0, breakTimer - deltaSeconds);
 
         if (strongestEvent != null) {
             reactToEvent(strongestEvent);
@@ -110,11 +122,17 @@ public class EmployeeNpc {
         if (state == State.INVESTIGATING || state == State.PANICKING) {
             moveToward(targetX, targetY, state == State.PANICKING ? INSPECT_SPEED : WALK_SPEED, deltaSeconds, walls);
         } else if (state == State.WORKING) {
+            if (breakTimer > 0) {
+                reactionText = breakText();
+                productivity = role == Role.LEAD ? 0.55 : 0.45;
+                return;
+            }
             if (wanderTimer == 0 || distanceTo(targetX, targetY) < 12) {
                 chooseRoutineTarget();
             }
-            reactionText = distanceTo(homeX, homeY) < 20 ? "Focused" : "Stretching legs";
-            moveToward(targetX, targetY, WALK_SPEED * 0.65, deltaSeconds, walls);
+            reactionText = distanceTo(homeX, homeY) < 20 ? focusText() : movingText();
+            productivity = role == Role.LEAD ? 1.0 : 0.9;
+            moveToward(targetX, targetY, routineSpeed(), deltaSeconds, walls);
         }
     }
 
@@ -140,7 +158,7 @@ public class EmployeeNpc {
         if (player.isHidden()) {
             return false;
         }
-        return distanceTo(player.centerX(), player.centerY()) < 85;
+        return distanceTo(player.centerX(), player.centerY()) < sightRange();
     }
 
     private void moveToward(double destinationX, double destinationY, double speed, double deltaSeconds, List<Rect> walls) {
@@ -207,7 +225,10 @@ public class EmployeeNpc {
         routineIndex = (routineIndex + 1) % routinePoints.size();
         targetX = nextPoint.x();
         targetY = nextPoint.y();
-        wanderTimer = 2.8;
+        wanderTimer = 2.4 + routineIndex * 0.2;
+        if (routineIndex == 0 || routineIndex == routinePoints.size() - 1) {
+            breakTimer = role == Role.LEAD ? 0.6 : 1.2;
+        }
     }
 
     public double distanceTo(double px, double py) {
@@ -246,11 +267,69 @@ public class EmployeeNpc {
         return state == State.PANICKING
                 && !player.isHidden()
                 && reportCooldown <= 0
-                && distanceTo(player.centerX(), player.centerY()) < 150;
+                && distanceTo(player.centerX(), player.centerY()) < reportRange();
     }
 
     public void markReportUsed() {
         reportCooldown = 5.2;
+    }
+
+    public Role role() {
+        return role;
+    }
+
+    private double routineSpeed() {
+        return switch (role) {
+            case DEVELOPER -> WALK_SPEED * 0.55;
+            case DESIGNER -> WALK_SPEED * 0.62;
+            case ANALYST -> WALK_SPEED * 0.68;
+            case LEAD -> WALK_SPEED * 0.74;
+        };
+    }
+
+    private double sightRange() {
+        return switch (role) {
+            case DEVELOPER -> 80;
+            case DESIGNER -> 86;
+            case ANALYST -> 92;
+            case LEAD -> 108;
+        };
+    }
+
+    private double reportRange() {
+        return switch (role) {
+            case DEVELOPER -> 138;
+            case DESIGNER -> 146;
+            case ANALYST -> 154;
+            case LEAD -> 172;
+        };
+    }
+
+    private String focusText() {
+        return switch (role) {
+            case DEVELOPER -> "Debugging";
+            case DESIGNER -> "Sketching";
+            case ANALYST -> "Reviewing";
+            case LEAD -> "Supervising";
+        };
+    }
+
+    private String movingText() {
+        return switch (role) {
+            case DEVELOPER -> "Refill trip";
+            case DESIGNER -> "Mood board";
+            case ANALYST -> "Checking notes";
+            case LEAD -> "Checking team";
+        };
+    }
+
+    private String breakText() {
+        return switch (role) {
+            case DEVELOPER -> "Coffee pause";
+            case DESIGNER -> "Inspiration break";
+            case ANALYST -> "Spreadsheet break";
+            case LEAD -> "Status review";
+        };
     }
 
     private String pickLine(String[] variants, int seed) {

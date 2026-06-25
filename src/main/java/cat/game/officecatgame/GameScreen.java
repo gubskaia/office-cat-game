@@ -1650,6 +1650,7 @@ public class GameScreen extends StackPane {
 
         employees.add(new EmployeeNpc(
                 "Mila",
+                EmployeeNpc.Role.DEVELOPER,
                 334,
                 244,
                 Color.web("#3b82f6"),
@@ -1662,6 +1663,7 @@ public class GameScreen extends StackPane {
         ));
         employees.add(new EmployeeNpc(
                 "Jon",
+                EmployeeNpc.Role.DESIGNER,
                 334,
                 386,
                 Color.web("#22c55e"),
@@ -1674,6 +1676,7 @@ public class GameScreen extends StackPane {
         ));
         employees.add(new EmployeeNpc(
                 "Ava",
+                EmployeeNpc.Role.ANALYST,
                 1120,
                 314,
                 Color.web("#f97316"),
@@ -1686,6 +1689,7 @@ public class GameScreen extends StackPane {
         ));
         employees.add(new EmployeeNpc(
                 "Noah",
+                EmployeeNpc.Role.LEAD,
                 1288,
                 742,
                 Color.web("#ec4899"),
