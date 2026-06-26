@@ -161,11 +161,13 @@ public class GameScreen extends StackPane {
     private double mugSpillTimer;
     private double papersMessTimer;
     private double meetingAlertTimer;
+    private double stagedInteractionTimer;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
     private double officeProductivity = 1.0;
     private Point keyboardNapExitPoint = new Point(0, 0);
+    private ChaosInteraction stagedInteraction;
     private int comboCount;
     private int objectiveIndex;
     private ChaosObjective currentObjective;
@@ -225,6 +227,7 @@ public class GameScreen extends StackPane {
             mugSpillTimer = Math.max(0, mugSpillTimer - deltaSeconds);
             papersMessTimer = Math.max(0, papersMessTimer - deltaSeconds);
             meetingAlertTimer = Math.max(0, meetingAlertTimer - deltaSeconds);
+            updateStagedInteraction(deltaSeconds);
             updateKeyboardNap(deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
             shakePhase += deltaSeconds * 34;
@@ -358,6 +361,7 @@ public class GameScreen extends StackPane {
         mugSpillTimer = 0;
         papersMessTimer = 0;
         meetingAlertTimer = 0;
+        stagedInteractionTimer = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -374,6 +378,7 @@ public class GameScreen extends StackPane {
         player.clearTemporaryEffects();
         activeHideSpot = null;
         keyboardNapExitPoint = new Point(0, 0);
+        stagedInteraction = null;
         chaosEvents.clear();
         dangerZones.clear();
         floatingTexts.clear();
@@ -412,48 +417,100 @@ public class GameScreen extends StackPane {
                     nearest.trigger();
                     if ("keyboard".equals(nearest.id())) {
                         startKeyboardNap(nearest);
+                        completeInteraction(nearest);
                     } else if ("wifi".equals(nearest.id())) {
                         startWifiOutage(nearest);
-                    } else if ("mug".equals(nearest.id())) {
-                        startMugSpill(nearest);
-                    } else if ("papers".equals(nearest.id())) {
-                        startPaperMess(nearest);
-                    } else if ("meeting".equals(nearest.id())) {
-                        startMeetingDisruption(nearest);
+                        completeInteraction(nearest);
+                    } else if (requiresStaging(nearest)) {
+                        startStagedInteraction(nearest);
+                    } else {
+                        completeInteraction(nearest);
                     }
-                    double chaosGain = applyCombo(nearest);
-                    chaosPercent = Math.min(100, chaosPercent + chaosGain);
-                    chaosEvents.add(new ChaosEvent(
-                            nearest.eventLabel(),
-                            nearest.x(),
-                            nearest.y(),
-                            nearest.eventRadius(),
-                            nearest.eventSeverity(),
-                            EVENT_DURATION_SECONDS
-                    ));
-                    addIncident("Chaos: " + nearest.eventLabel());
-                    floatingTexts.add(new FloatingText(
-                            String.format("+%.0f chaos", chaosGain),
-                            nearest.x(),
-                            nearest.y() - 18,
-                            Color.web("#ef4444"),
-                            1.2
-                    ));
-                    if (comboCount >= 2) {
-                        floatingTexts.add(new FloatingText(
-                                "Combo x" + comboCount,
-                                nearest.x(),
-                                nearest.y() - 40,
-                            Color.web("#fbbf24"),
-                            1.4
-                        ));
-                    }
-                    addShake(nearest.eventSeverity() >= 7 ? 7.5 : 4.0);
-                    checkObjectiveCompletion(nearest);
                 }
             }
         }
         interactionHeld = pressed;
+    }
+
+    private boolean requiresStaging(ChaosInteraction interaction) {
+        return switch (interaction.id()) {
+            case "mug", "papers", "meeting" -> true;
+            default -> false;
+        };
+    }
+
+    private void startStagedInteraction(ChaosInteraction interaction) {
+        stagedInteraction = interaction;
+        stagedInteractionTimer = switch (interaction.id()) {
+            case "mug" -> 0.55;
+            case "papers" -> 0.72;
+            case "meeting" -> 0.6;
+            default -> 0;
+        };
+        floatingTexts.add(new FloatingText(
+                switch (interaction.id()) {
+                    case "mug" -> "Lining up the mug...";
+                    case "papers" -> "Paws on the paperwork...";
+                    case "meeting" -> "Timing the meow...";
+                    default -> "Chaos brewing...";
+                },
+                interaction.x(),
+                interaction.y() - 48,
+                Color.web("#fde68a"),
+                0.8
+        ));
+    }
+
+    private void updateStagedInteraction(double deltaSeconds) {
+        if (stagedInteraction == null) {
+            stagedInteractionTimer = 0;
+            return;
+        }
+
+        stagedInteractionTimer = Math.max(0, stagedInteractionTimer - deltaSeconds);
+        if (stagedInteractionTimer == 0) {
+            if ("mug".equals(stagedInteraction.id())) {
+                startMugSpill(stagedInteraction);
+            } else if ("papers".equals(stagedInteraction.id())) {
+                startPaperMess(stagedInteraction);
+            } else if ("meeting".equals(stagedInteraction.id())) {
+                startMeetingDisruption(stagedInteraction);
+            }
+            completeInteraction(stagedInteraction);
+            stagedInteraction = null;
+        }
+    }
+
+    private void completeInteraction(ChaosInteraction interaction) {
+        double chaosGain = applyCombo(interaction);
+        chaosPercent = Math.min(100, chaosPercent + chaosGain);
+        chaosEvents.add(new ChaosEvent(
+                interaction.eventLabel(),
+                interaction.x(),
+                interaction.y(),
+                interaction.eventRadius(),
+                interaction.eventSeverity(),
+                EVENT_DURATION_SECONDS
+        ));
+        addIncident("Chaos: " + interaction.eventLabel());
+        floatingTexts.add(new FloatingText(
+                String.format("+%.0f chaos", chaosGain),
+                interaction.x(),
+                interaction.y() - 18,
+                Color.web("#ef4444"),
+                1.2
+        ));
+        if (comboCount >= 2) {
+            floatingTexts.add(new FloatingText(
+                    "Combo x" + comboCount,
+                    interaction.x(),
+                    interaction.y() - 40,
+                    Color.web("#fbbf24"),
+                    1.4
+            ));
+        }
+        addShake(interaction.eventSeverity() >= 7 ? 7.5 : 4.0);
+        checkObjectiveCompletion(interaction);
     }
 
     private ChaosObjective nextObjective() {
@@ -659,7 +716,7 @@ public class GameScreen extends StackPane {
     }
 
     private boolean isPlayerLocked() {
-        return keyboardNapTimer > 0;
+        return keyboardNapTimer > 0 || stagedInteractionTimer > 0;
     }
 
     private void updateChaosEvents(double deltaSeconds) {
@@ -1192,6 +1249,12 @@ public class GameScreen extends StackPane {
                 double pulse = 28 + Math.sin(animationClock * 8) * 5;
                 gc.setStroke(Color.rgb(96, 165, 250, 0.5));
                 gc.setLineWidth(3);
+                gc.strokeOval(interaction.x() - pulse, interaction.y() - pulse, pulse * 2, pulse * 2);
+            }
+            if (interaction == stagedInteraction && stagedInteractionTimer > 0) {
+                double pulse = 24 + Math.sin(animationClock * 12) * 4;
+                gc.setStroke(Color.rgb(251, 191, 36, 0.72));
+                gc.setLineWidth(4);
                 gc.strokeOval(interaction.x() - pulse, interaction.y() - pulse, pulse * 2, pulse * 2);
             }
             Image sprite = interactionSprite(interaction);
