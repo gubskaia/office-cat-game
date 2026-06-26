@@ -46,6 +46,7 @@ public class GameScreen extends StackPane {
     private static final double PRODUCTIVITY_CASCADE_RATE = 1.35;
     private static final double ZOOMIES_DURATION_SECONDS = 7.0;
     private static final double ZOOMIES_SPEED_MULTIPLIER = 1.45;
+    private static final double WIFI_OUTAGE_DURATION_SECONDS = 10.0;
     private static final double SHAKE_DECAY_PER_SECOND = 3.4;
     private static final Point PLAYER_RESPAWN = new Point(170, 190);
     private static final double PLAYER_DRAW_SIZE = 78;
@@ -153,6 +154,7 @@ public class GameScreen extends StackPane {
     private double dangerExposureTimer;
     private double productivityCascadeTicker;
     private double keyboardNapTimer;
+    private double wifiOutageTimer;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
@@ -213,6 +215,7 @@ public class GameScreen extends StackPane {
             comboTimer = Math.max(0, comboTimer - deltaSeconds);
             meowCooldownRemaining = Math.max(0, meowCooldownRemaining - deltaSeconds);
             dangerZoneCreateCooldown = Math.max(0, dangerZoneCreateCooldown - deltaSeconds);
+            wifiOutageTimer = Math.max(0, wifiOutageTimer - deltaSeconds);
             updateKeyboardNap(deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
             shakePhase += deltaSeconds * 34;
@@ -342,6 +345,7 @@ public class GameScreen extends StackPane {
         dangerExposureTimer = 0;
         productivityCascadeTicker = 0;
         keyboardNapTimer = 0;
+        wifiOutageTimer = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -396,6 +400,8 @@ public class GameScreen extends StackPane {
                     nearest.trigger();
                     if ("keyboard".equals(nearest.id())) {
                         startKeyboardNap(nearest);
+                    } else if ("wifi".equals(nearest.id())) {
+                        startWifiOutage(nearest);
                     }
                     double chaosGain = applyCombo(nearest);
                     chaosPercent = Math.min(100, chaosPercent + chaosGain);
@@ -574,6 +580,19 @@ public class GameScreen extends StackPane {
         ));
     }
 
+    private void startWifiOutage(ChaosInteraction interaction) {
+        wifiOutageTimer = WIFI_OUTAGE_DURATION_SECONDS;
+        addIncident("Office Wi-Fi outage triggered");
+        floatingTexts.add(new FloatingText(
+                "Wi-Fi offline!",
+                interaction.x(),
+                interaction.y() - 44,
+                Color.web("#fca5a5"),
+                1.4
+        ));
+        addShake(5.0);
+    }
+
     private void updateKeyboardNap(double deltaSeconds) {
         if (keyboardNapTimer <= 0) {
             return;
@@ -615,6 +634,7 @@ public class GameScreen extends StackPane {
                     player,
                     resolveNpcTarget(employee.x(), employee.y(), player.centerX(), player.centerY()),
                     resolveEventForNpc(employee.x(), employee.y(), strongestEventNear(employee.x(), employee.y(), 165)),
+                    wifiOutageTimer / WIFI_OUTAGE_DURATION_SECONDS,
                     walls
             );
             if (employee.canReportCat(player)) {
@@ -681,6 +701,11 @@ public class GameScreen extends StackPane {
         }
         officeProductivity = totalProductivity / employees.size();
 
+        if (wifiOutageTimer > 0) {
+            double outagePressure = 1.0 - (wifiOutageTimer / WIFI_OUTAGE_DURATION_SECONDS) * 0.35;
+            officeProductivity = Math.min(officeProductivity, Math.max(0.18, outagePressure * officeProductivity));
+        }
+
         if (officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD) {
             productivityCascadeTicker = 0;
             return;
@@ -729,6 +754,9 @@ public class GameScreen extends StackPane {
         double pressure = chaosPercent / 40.0;
         if (comboCount >= 3 && comboTimer > 0) {
             pressure += 0.45;
+        }
+        if (wifiOutageTimer > 0) {
+            pressure += 0.35;
         }
         return Math.min(2.0, pressure);
     }
@@ -1032,6 +1060,10 @@ public class GameScreen extends StackPane {
         drawDoorway(gc, MEETING_DOOR_X, MEETING_ROOM.y() + MEETING_ROOM.height(), false);
         drawDoorway(gc, KITCHEN_DOOR_X, KITCHEN_ROOM.y() + KITCHEN_ROOM.height(), false);
         drawDoorway(gc, DIRECTOR_DOOR_X, DIRECTOR_ROOM.y(), true);
+        if (wifiOutageTimer > 0) {
+            gc.setFill(Color.rgb(59, 130, 246, 0.05 + 0.05 * Math.sin(animationClock * 10)));
+            gc.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        }
 
         gc.setStroke(Color.rgb(59, 73, 97, 0.4));
         gc.setLineWidth(2);
@@ -1044,6 +1076,12 @@ public class GameScreen extends StackPane {
 
     private void drawInteractions(GraphicsContext gc) {
         for (ChaosInteraction interaction : interactions) {
+            if ("wifi".equals(interaction.id()) && wifiOutageTimer > 0) {
+                double pulse = 28 + Math.sin(animationClock * 8) * 5;
+                gc.setStroke(Color.rgb(96, 165, 250, 0.5));
+                gc.setLineWidth(3);
+                gc.strokeOval(interaction.x() - pulse, interaction.y() - pulse, pulse * 2, pulse * 2);
+            }
             Image sprite = interactionSprite(interaction);
             if (sprite != null) {
                 drawCenteredSprite(gc, sprite, interaction.x(), interaction.y(), interactionSize(interaction));
@@ -1324,6 +1362,12 @@ public class GameScreen extends StackPane {
         gc.setTextAlign(TextAlignment.RIGHT);
         gc.fillText(dayStageLabel(), 1244, 36);
         gc.setTextAlign(TextAlignment.LEFT);
+        if (wifiOutageTimer > 0) {
+            drawPanel(gc, 690, 10, 320, 42, Color.web("#3b82f6"));
+            gc.setFill(Color.web("#eff6ff"));
+            gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+            gc.fillText(String.format("WIFI OUTAGE %.0fs", Math.ceil(wifiOutageTimer)), 708, 36);
+        }
     }
 
     private String dayStageLabel() {

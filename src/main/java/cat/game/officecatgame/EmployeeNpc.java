@@ -91,7 +91,14 @@ public class EmployeeNpc {
         routineIndex = 0;
     }
 
-    public void update(double deltaSeconds, PlayerCat player, Point playerTarget, ChaosEvent strongestEvent, List<Rect> walls) {
+    public void update(
+            double deltaSeconds,
+            PlayerCat player,
+            Point playerTarget,
+            ChaosEvent strongestEvent,
+            double officeAlertLevel,
+            List<Rect> walls
+    ) {
         reportCooldown = Math.max(0, reportCooldown - deltaSeconds);
         wanderTimer = Math.max(0, wanderTimer - deltaSeconds);
         breakTimer = Math.max(0, breakTimer - deltaSeconds);
@@ -122,6 +129,10 @@ public class EmployeeNpc {
         if (state == State.INVESTIGATING || state == State.PANICKING) {
             moveToward(targetX, targetY, state == State.PANICKING ? INSPECT_SPEED : WALK_SPEED, deltaSeconds, walls);
         } else if (state == State.WORKING) {
+            if (officeAlertLevel > 0.15) {
+                reactionText = alertText();
+                productivity = Math.max(0.15, 0.65 - officeAlertLevel * 0.45);
+            }
             if (breakTimer > 0) {
                 reactionText = breakText();
                 productivity = role == Role.LEAD ? 0.55 : 0.45;
@@ -329,6 +340,15 @@ public class EmployeeNpc {
             case DESIGNER -> "Inspiration break";
             case ANALYST -> "Spreadsheet break";
             case LEAD -> "Status review";
+        };
+    }
+
+    private String alertText() {
+        return switch (role) {
+            case DEVELOPER -> "No internet?!";
+            case DESIGNER -> "Cloud sync down";
+            case ANALYST -> "Dashboards offline";
+            case LEAD -> "Who killed Wi-Fi?";
         };
     }
 
