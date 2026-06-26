@@ -162,12 +162,15 @@ public class GameScreen extends StackPane {
     private double papersMessTimer;
     private double meetingAlertTimer;
     private double stagedInteractionTimer;
+    private double cinematicCueTimer;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
     private double officeProductivity = 1.0;
     private Point keyboardNapExitPoint = new Point(0, 0);
     private ChaosInteraction stagedInteraction;
+    private String cinematicCueText = "";
+    private Color cinematicCueColor = Color.WHITE;
     private int comboCount;
     private int objectiveIndex;
     private ChaosObjective currentObjective;
@@ -227,6 +230,7 @@ public class GameScreen extends StackPane {
             mugSpillTimer = Math.max(0, mugSpillTimer - deltaSeconds);
             papersMessTimer = Math.max(0, papersMessTimer - deltaSeconds);
             meetingAlertTimer = Math.max(0, meetingAlertTimer - deltaSeconds);
+            cinematicCueTimer = Math.max(0, cinematicCueTimer - deltaSeconds);
             updateStagedInteraction(deltaSeconds);
             updateKeyboardNap(deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
@@ -362,6 +366,7 @@ public class GameScreen extends StackPane {
         papersMessTimer = 0;
         meetingAlertTimer = 0;
         stagedInteractionTimer = 0;
+        cinematicCueTimer = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -379,6 +384,8 @@ public class GameScreen extends StackPane {
         activeHideSpot = null;
         keyboardNapExitPoint = new Point(0, 0);
         stagedInteraction = null;
+        cinematicCueText = "";
+        cinematicCueColor = Color.WHITE;
         chaosEvents.clear();
         dangerZones.clear();
         floatingTexts.clear();
@@ -510,7 +517,54 @@ public class GameScreen extends StackPane {
             ));
         }
         addShake(interaction.eventSeverity() >= 7 ? 7.5 : 4.0);
+        applyInteractionLocalAftermath(interaction);
         checkObjectiveCompletion(interaction);
+    }
+
+    private void applyInteractionLocalAftermath(ChaosInteraction interaction) {
+        switch (interaction.id()) {
+            case "mug" -> {
+                showCinematicCue("COFFEE CATASTROPHE", Color.web("#fdba74"));
+                reactionBurst(interaction, "My coffee!", Color.web("#fdba74"), 2);
+            }
+            case "papers" -> {
+                showCinematicCue("EXECUTIVE PAPER STORM", Color.web("#a7f3d0"));
+                reactionBurst(interaction, "Catch those papers!", Color.web("#a7f3d0"), 2);
+            }
+            case "meeting" -> {
+                showCinematicCue("MEETING MELTDOWN", Color.web("#c4b5fd"));
+                reactionBurst(interaction, "We're still on call!", Color.web("#c4b5fd"), 3);
+            }
+            case "wifi" -> showCinematicCue("OFFICE OFFLINE", Color.web("#93c5fd"));
+            case "keyboard" -> showCinematicCue("KEYBOARD TAKEOVER", Color.web("#fde68a"));
+            default -> {
+            }
+        }
+    }
+
+    private void showCinematicCue(String text, Color color) {
+        cinematicCueText = text;
+        cinematicCueColor = color;
+        cinematicCueTimer = 1.8;
+    }
+
+    private void reactionBurst(ChaosInteraction interaction, String text, Color color, int limit) {
+        int count = 0;
+        for (EmployeeNpc employee : employees) {
+            if (Math.hypot(employee.x() - interaction.x(), employee.y() - interaction.y()) <= 220) {
+                floatingTexts.add(new FloatingText(
+                        text,
+                        employee.x(),
+                        employee.y() - 38,
+                        color,
+                        1.0
+                ));
+                count++;
+                if (count >= limit) {
+                    break;
+                }
+            }
+        }
     }
 
     private ChaosObjective nextObjective() {
@@ -1548,6 +1602,16 @@ public class GameScreen extends StackPane {
             gc.setFill(Color.web("#f5f3ff"));
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
             gc.fillText(String.format("MEETING MELTDOWN %.0fs", Math.ceil(meetingAlertTimer)), 708, 84);
+        }
+        if (cinematicCueTimer > 0) {
+            double alpha = Math.min(1.0, cinematicCueTimer / 0.9);
+            gc.setFill(Color.rgb(10, 15, 25, 0.82 * alpha));
+            gc.fillRoundRect(734, 106, 492, 38, 16, 16);
+            gc.setFill(cinematicCueColor.deriveColor(0, 1, 1, alpha));
+            gc.setFont(Font.font("Verdana", FontWeight.BOLD, 18));
+            gc.setTextAlign(TextAlignment.CENTER);
+            gc.fillText(cinematicCueText, 980, 131);
+            gc.setTextAlign(TextAlignment.LEFT);
         }
     }
 
