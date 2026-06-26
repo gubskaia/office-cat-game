@@ -47,6 +47,9 @@ public class GameScreen extends StackPane {
     private static final double ZOOMIES_DURATION_SECONDS = 7.0;
     private static final double ZOOMIES_SPEED_MULTIPLIER = 1.45;
     private static final double WIFI_OUTAGE_DURATION_SECONDS = 10.0;
+    private static final double MUG_SPILL_DURATION_SECONDS = 8.0;
+    private static final double PAPERS_MESS_DURATION_SECONDS = 9.0;
+    private static final double MEETING_ALERT_DURATION_SECONDS = 6.5;
     private static final double SHAKE_DECAY_PER_SECOND = 3.4;
     private static final Point PLAYER_RESPAWN = new Point(170, 190);
     private static final double PLAYER_DRAW_SIZE = 78;
@@ -155,6 +158,9 @@ public class GameScreen extends StackPane {
     private double productivityCascadeTicker;
     private double keyboardNapTimer;
     private double wifiOutageTimer;
+    private double mugSpillTimer;
+    private double papersMessTimer;
+    private double meetingAlertTimer;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
@@ -216,6 +222,9 @@ public class GameScreen extends StackPane {
             meowCooldownRemaining = Math.max(0, meowCooldownRemaining - deltaSeconds);
             dangerZoneCreateCooldown = Math.max(0, dangerZoneCreateCooldown - deltaSeconds);
             wifiOutageTimer = Math.max(0, wifiOutageTimer - deltaSeconds);
+            mugSpillTimer = Math.max(0, mugSpillTimer - deltaSeconds);
+            papersMessTimer = Math.max(0, papersMessTimer - deltaSeconds);
+            meetingAlertTimer = Math.max(0, meetingAlertTimer - deltaSeconds);
             updateKeyboardNap(deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
             shakePhase += deltaSeconds * 34;
@@ -346,6 +355,9 @@ public class GameScreen extends StackPane {
         productivityCascadeTicker = 0;
         keyboardNapTimer = 0;
         wifiOutageTimer = 0;
+        mugSpillTimer = 0;
+        papersMessTimer = 0;
+        meetingAlertTimer = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -402,6 +414,12 @@ public class GameScreen extends StackPane {
                         startKeyboardNap(nearest);
                     } else if ("wifi".equals(nearest.id())) {
                         startWifiOutage(nearest);
+                    } else if ("mug".equals(nearest.id())) {
+                        startMugSpill(nearest);
+                    } else if ("papers".equals(nearest.id())) {
+                        startPaperMess(nearest);
+                    } else if ("meeting".equals(nearest.id())) {
+                        startMeetingDisruption(nearest);
                     }
                     double chaosGain = applyCombo(nearest);
                     chaosPercent = Math.min(100, chaosPercent + chaosGain);
@@ -593,6 +611,43 @@ public class GameScreen extends StackPane {
         addShake(5.0);
     }
 
+    private void startMugSpill(ChaosInteraction interaction) {
+        mugSpillTimer = MUG_SPILL_DURATION_SECONDS;
+        addIncident("Coffee spilled across the kitchen");
+        floatingTexts.add(new FloatingText(
+                "Coffee flood!",
+                interaction.x(),
+                interaction.y() - 34,
+                Color.web("#fdba74"),
+                1.2
+        ));
+    }
+
+    private void startPaperMess(ChaosInteraction interaction) {
+        papersMessTimer = PAPERS_MESS_DURATION_SECONDS;
+        addIncident("Director papers launched into chaos");
+        floatingTexts.add(new FloatingText(
+                "Paper storm!",
+                interaction.x(),
+                interaction.y() - 34,
+                Color.web("#a7f3d0"),
+                1.2
+        ));
+    }
+
+    private void startMeetingDisruption(ChaosInteraction interaction) {
+        meetingAlertTimer = MEETING_ALERT_DURATION_SECONDS;
+        addIncident("Meeting room thrown into confusion");
+        floatingTexts.add(new FloatingText(
+                "Meeting ruined!",
+                interaction.x(),
+                interaction.y() - 34,
+                Color.web("#c4b5fd"),
+                1.2
+        ));
+        addShake(3.4);
+    }
+
     private void updateKeyboardNap(double deltaSeconds) {
         if (keyboardNapTimer <= 0) {
             return;
@@ -634,7 +689,7 @@ public class GameScreen extends StackPane {
                     player,
                     resolveNpcTarget(employee.x(), employee.y(), player.centerX(), player.centerY()),
                     resolveEventForNpc(employee.x(), employee.y(), strongestEventNear(employee.x(), employee.y(), 165)),
-                    wifiOutageTimer / WIFI_OUTAGE_DURATION_SECONDS,
+                    officeAlertLevel(),
                     walls
             );
             if (employee.canReportCat(player)) {
@@ -705,6 +760,15 @@ public class GameScreen extends StackPane {
             double outagePressure = 1.0 - (wifiOutageTimer / WIFI_OUTAGE_DURATION_SECONDS) * 0.35;
             officeProductivity = Math.min(officeProductivity, Math.max(0.18, outagePressure * officeProductivity));
         }
+        if (meetingAlertTimer > 0) {
+            officeProductivity *= 0.92;
+        }
+        if (mugSpillTimer > 0) {
+            officeProductivity *= 0.96;
+        }
+        if (papersMessTimer > 0) {
+            officeProductivity *= 0.9;
+        }
 
         if (officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD) {
             productivityCascadeTicker = 0;
@@ -758,7 +822,30 @@ public class GameScreen extends StackPane {
         if (wifiOutageTimer > 0) {
             pressure += 0.35;
         }
+        if (meetingAlertTimer > 0) {
+            pressure += 0.18;
+        }
+        if (papersMessTimer > 0) {
+            pressure += 0.14;
+        }
         return Math.min(2.0, pressure);
+    }
+
+    private double officeAlertLevel() {
+        double level = 0;
+        if (wifiOutageTimer > 0) {
+            level += wifiOutageTimer / WIFI_OUTAGE_DURATION_SECONDS;
+        }
+        if (meetingAlertTimer > 0) {
+            level += 0.45 * (meetingAlertTimer / MEETING_ALERT_DURATION_SECONDS);
+        }
+        if (papersMessTimer > 0) {
+            level += 0.35 * (papersMessTimer / PAPERS_MESS_DURATION_SECONDS);
+        }
+        if (mugSpillTimer > 0) {
+            level += 0.2 * (mugSpillTimer / MUG_SPILL_DURATION_SECONDS);
+        }
+        return Math.min(1.0, level);
     }
 
     private ChaosEvent resolveEventForNpc(double actorX, double actorY, ChaosEvent event) {
@@ -1072,6 +1159,31 @@ public class GameScreen extends StackPane {
         }
 
         drawFurniture(gc);
+        drawInteractionAftermath(gc);
+    }
+
+    private void drawInteractionAftermath(GraphicsContext gc) {
+        if (mugSpillTimer > 0) {
+            gc.setFill(Color.rgb(92, 58, 28, 0.28 + 0.12 * Math.sin(animationClock * 7)));
+            gc.fillOval(1650, 212, 74, 30);
+        }
+        if (papersMessTimer > 0) {
+            gc.setStroke(Color.rgb(240, 249, 255, 0.75));
+            gc.setLineWidth(2);
+            for (int i = 0; i < 5; i++) {
+                double offset = i * 18;
+                gc.strokeLine(1470 + offset, 560 + Math.sin(animationClock * 4 + i) * 12, 1490 + offset, 580 + Math.cos(animationClock * 4 + i) * 10);
+                gc.strokeLine(1500 + offset, 590 + Math.cos(animationClock * 5 + i) * 10, 1515 + offset, 605 + Math.sin(animationClock * 5 + i) * 12);
+            }
+        }
+        if (meetingAlertTimer > 0) {
+            double alpha = 0.18 + 0.12 * Math.sin(animationClock * 9);
+            gc.setFill(Color.rgb(139, 92, 246, alpha));
+            gc.fillOval(1002, 172, 236, 120);
+            gc.setStroke(Color.rgb(196, 181, 253, 0.55));
+            gc.setLineWidth(3);
+            gc.strokeOval(994, 164, 252, 136);
+        }
     }
 
     private void drawInteractions(GraphicsContext gc) {
@@ -1367,6 +1479,12 @@ public class GameScreen extends StackPane {
             gc.setFill(Color.web("#eff6ff"));
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
             gc.fillText(String.format("WIFI OUTAGE %.0fs", Math.ceil(wifiOutageTimer)), 708, 36);
+        }
+        if (meetingAlertTimer > 0) {
+            drawPanel(gc, 690, 58, 320, 42, Color.web("#8b5cf6"));
+            gc.setFill(Color.web("#f5f3ff"));
+            gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+            gc.fillText(String.format("MEETING MELTDOWN %.0fs", Math.ceil(meetingAlertTimer)), 708, 84);
         }
     }
 
