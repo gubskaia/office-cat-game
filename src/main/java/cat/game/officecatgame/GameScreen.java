@@ -165,6 +165,7 @@ public class GameScreen extends StackPane {
     private double stagedInteractionTimer;
     private double cinematicCueTimer;
     private double ambientParticleTimer;
+    private double executiveEscalationTimer;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
@@ -234,6 +235,7 @@ public class GameScreen extends StackPane {
             meetingAlertTimer = Math.max(0, meetingAlertTimer - deltaSeconds);
             cinematicCueTimer = Math.max(0, cinematicCueTimer - deltaSeconds);
             ambientParticleTimer = Math.max(0, ambientParticleTimer - deltaSeconds);
+            executiveEscalationTimer = Math.max(0, executiveEscalationTimer - deltaSeconds);
             updateStagedInteraction(deltaSeconds);
             updateKeyboardNap(deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
@@ -255,6 +257,7 @@ public class GameScreen extends StackPane {
             updateIncidentFeed(deltaSeconds);
             updateNpcs(deltaSeconds);
             updateOfficeProductivity(deltaSeconds);
+            updateEscalatingStates(deltaSeconds);
             applyDangerZonePressure(deltaSeconds);
             handleManagerCatch();
 
@@ -375,6 +378,7 @@ public class GameScreen extends StackPane {
         stagedInteractionTimer = 0;
         cinematicCueTimer = 0;
         ambientParticleTimer = 0;
+        executiveEscalationTimer = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -499,6 +503,7 @@ public class GameScreen extends StackPane {
 
     private void completeInteraction(ChaosInteraction interaction) {
         double chaosGain = applyCombo(interaction);
+        chaosGain += applyInteractionBonus(interaction);
         chaosPercent = Math.min(100, chaosPercent + chaosGain);
         chaosEvents.add(new ChaosEvent(
                 interaction.eventLabel(),
@@ -528,6 +533,26 @@ public class GameScreen extends StackPane {
         addShake(interaction.eventSeverity() >= 7 ? 7.5 : 4.0);
         applyInteractionLocalAftermath(interaction);
         checkObjectiveCompletion(interaction);
+    }
+
+    private double applyInteractionBonus(ChaosInteraction interaction) {
+        double bonus = switch (interaction.id()) {
+            case "meeting" -> 2.5;
+            case "papers" -> 3.5;
+            case "wifi" -> 2.0;
+            default -> 0;
+        };
+
+        if (bonus > 0) {
+            floatingTexts.add(new FloatingText(
+                    String.format("Escalation +%.0f", bonus),
+                    interaction.x(),
+                    interaction.y() - 58,
+                    Color.web("#fca5a5"),
+                    1.0
+            ));
+        }
+        return bonus;
     }
 
     private void applyInteractionLocalAftermath(ChaosInteraction interaction) {
@@ -870,6 +895,32 @@ public class GameScreen extends StackPane {
         }
         if (meetingAlertTimer > 0) {
             emitAmbientParticle(1120, 244, Color.web("#c4b5fd"), ChaosParticle.Style.STREAK, 12, 16, 0.8, 4.0);
+        }
+    }
+
+    private void updateEscalatingStates(double deltaSeconds) {
+        if (papersMessTimer > 0) {
+            if (executiveEscalationTimer == 0) {
+                executiveEscalationTimer = 2.2;
+                chaosPercent = Math.min(100, chaosPercent + 1.5);
+                chaosEvents.add(new ChaosEvent(
+                        "executive scrutiny",
+                        1512,
+                        604,
+                        180,
+                        6.8,
+                        1.8
+                ));
+                floatingTexts.add(new FloatingText(
+                        "Executive pressure +1",
+                        1512,
+                        548,
+                        Color.web("#fca5a5"),
+                        1.0
+                ));
+            }
+        } else {
+            executiveEscalationTimer = 0;
         }
     }
 
@@ -1264,6 +1315,7 @@ public class GameScreen extends StackPane {
         drawParticles(gc);
         drawFloatingTexts(gc);
         gc.restore();
+        drawScreenEffects(gc);
         drawTopRibbon(gc);
         drawHud(gc);
         drawIncidentFeed(gc);
@@ -1503,6 +1555,37 @@ public class GameScreen extends StackPane {
             gc.fillText(text.text(), text.x(), text.y());
         }
         gc.setTextAlign(TextAlignment.LEFT);
+    }
+
+    private void drawScreenEffects(GraphicsContext gc) {
+        double managerDistance = manager.distanceTo(player.centerX(), player.centerY());
+        double threat = 0;
+        if (manager.mode() == ManagerNpc.Mode.CHASING) {
+            threat = 1.0;
+        } else if (manager.mode() == ManagerNpc.Mode.SEARCHING) {
+            threat = 0.55;
+        } else if (managerDistance < 220 && !player.isHidden()) {
+            threat = Math.max(0, 1.0 - managerDistance / 220.0);
+        }
+
+        if (threat > 0.01) {
+            double alpha = 0.08 + threat * 0.18;
+            gc.setFill(Color.rgb(239, 68, 68, alpha));
+            gc.fillRect(0, 0, WIDTH, 26);
+            gc.fillRect(0, HEIGHT - 26, WIDTH, 26);
+            gc.fillRect(0, 0, 22, HEIGHT);
+            gc.fillRect(WIDTH - 22, 0, 22, HEIGHT);
+        }
+
+        String zone = currentZoneLabel();
+        if (meetingAlertTimer > 0 && zone.contains("MEETING")) {
+            gc.setFill(Color.rgb(139, 92, 246, 0.08 + 0.04 * Math.sin(animationClock * 8)));
+            gc.fillRect(0, 0, WIDTH, HEIGHT);
+        }
+        if (papersMessTimer > 0 && zone.contains("DIRECTOR")) {
+            gc.setFill(Color.rgb(251, 113, 133, 0.06 + 0.03 * Math.sin(animationClock * 6)));
+            gc.fillRect(0, 0, WIDTH, HEIGHT);
+        }
     }
 
     private void drawParticles(GraphicsContext gc) {
