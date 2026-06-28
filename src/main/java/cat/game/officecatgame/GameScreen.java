@@ -77,6 +77,7 @@ public class GameScreen extends StackPane {
     private final List<ChaosEvent> chaosEvents = new ArrayList<>();
     private final List<DangerZone> dangerZones = new ArrayList<>();
     private final List<FloatingText> floatingTexts = new ArrayList<>();
+    private final List<ChaosParticle> particles = new ArrayList<>();
     private final List<IncidentFeedEntry> incidentFeed = new ArrayList<>();
     private final List<ChaosObjective> objectiveDeck = List.of(
             new ChaosObjective("keyboard", "Keyboard Tyrant", "Nap on the developer keyboard", 8),
@@ -247,6 +248,7 @@ public class GameScreen extends StackPane {
             updateChaosEvents(deltaSeconds);
             updateDangerZones(deltaSeconds);
             updateFloatingTexts(deltaSeconds);
+            updateParticles(deltaSeconds);
             updateIncidentFeed(deltaSeconds);
             updateNpcs(deltaSeconds);
             updateOfficeProductivity(deltaSeconds);
@@ -301,6 +303,7 @@ public class GameScreen extends StackPane {
         if (dashPressed && !dashHeld && gameState == GameState.PLAYING && player.tryStartDash(input)) {
             addIncident("Cat dash burst");
             addShake(2.5);
+            emitParticles(player.centerX(), player.centerY(), Color.web("#7dd3fc"), 8, 90, 1.0, 3.5);
             floatingTexts.add(new FloatingText(
                     "Dash!",
                     player.centerX(),
@@ -319,6 +322,7 @@ public class GameScreen extends StackPane {
         if (meowPressed && !meowHeld && gameState == GameState.PLAYING && meowCooldownRemaining <= 0) {
             meowCooldownRemaining = MEOW_COOLDOWN_SECONDS;
             chaosPercent = Math.min(100, chaosPercent + MEOW_CHAOS_GAIN);
+            emitParticles(player.centerX(), player.centerY(), Color.web("#c4b5fd"), 10, 80, 1.0, 4.0);
             chaosEvents.add(new ChaosEvent(
                     "cat meow",
                     player.centerX(),
@@ -389,6 +393,7 @@ public class GameScreen extends StackPane {
         chaosEvents.clear();
         dangerZones.clear();
         floatingTexts.clear();
+        particles.clear();
         incidentFeed.clear();
 
         for (ChaosInteraction interaction : interactions) {
@@ -567,6 +572,31 @@ public class GameScreen extends StackPane {
         }
     }
 
+    private void emitParticles(
+            double centerX,
+            double centerY,
+            Color color,
+            int count,
+            double speed,
+            double lifetimeSeconds,
+            double size
+    ) {
+        for (int i = 0; i < count; i++) {
+            double angle = (Math.PI * 2 * i) / count + animationClock * 0.6;
+            double velocityX = Math.cos(angle) * speed * (0.55 + (i % 3) * 0.18);
+            double velocityY = Math.sin(angle) * speed * (0.55 + (i % 4) * 0.14);
+            particles.add(new ChaosParticle(
+                    centerX + Math.cos(angle) * 8,
+                    centerY + Math.sin(angle) * 8,
+                    velocityX,
+                    velocityY,
+                    Math.max(2.5, size - (i % 4)),
+                    color,
+                    lifetimeSeconds * (0.7 + (i % 5) * 0.08)
+            ));
+        }
+    }
+
     private ChaosObjective nextObjective() {
         if (objectiveDeck.isEmpty()) {
             return null;
@@ -712,6 +742,7 @@ public class GameScreen extends StackPane {
     private void startWifiOutage(ChaosInteraction interaction) {
         wifiOutageTimer = WIFI_OUTAGE_DURATION_SECONDS;
         addIncident("Office Wi-Fi outage triggered");
+        emitParticles(interaction.x(), interaction.y(), Color.web("#93c5fd"), 14, 110, 1.2, 5.0);
         floatingTexts.add(new FloatingText(
                 "Wi-Fi offline!",
                 interaction.x(),
@@ -725,6 +756,7 @@ public class GameScreen extends StackPane {
     private void startMugSpill(ChaosInteraction interaction) {
         mugSpillTimer = MUG_SPILL_DURATION_SECONDS;
         addIncident("Coffee spilled across the kitchen");
+        emitParticles(interaction.x(), interaction.y(), Color.web("#b45309"), 16, 120, 1.1, 5.5);
         floatingTexts.add(new FloatingText(
                 "Coffee flood!",
                 interaction.x(),
@@ -737,6 +769,7 @@ public class GameScreen extends StackPane {
     private void startPaperMess(ChaosInteraction interaction) {
         papersMessTimer = PAPERS_MESS_DURATION_SECONDS;
         addIncident("Director papers launched into chaos");
+        emitParticles(interaction.x(), interaction.y(), Color.web("#f8fafc"), 18, 140, 1.4, 4.5);
         floatingTexts.add(new FloatingText(
                 "Paper storm!",
                 interaction.x(),
@@ -749,6 +782,7 @@ public class GameScreen extends StackPane {
     private void startMeetingDisruption(ChaosInteraction interaction) {
         meetingAlertTimer = MEETING_ALERT_DURATION_SECONDS;
         addIncident("Meeting room thrown into confusion");
+        emitParticles(interaction.x(), interaction.y(), Color.web("#c4b5fd"), 18, 130, 1.3, 4.8);
         floatingTexts.add(new FloatingText(
                 "Meeting ruined!",
                 interaction.x(),
@@ -781,6 +815,11 @@ public class GameScreen extends StackPane {
     private void updateFloatingTexts(double deltaSeconds) {
         floatingTexts.forEach(text -> text.update(deltaSeconds));
         floatingTexts.removeIf(text -> !text.isAlive());
+    }
+
+    private void updateParticles(double deltaSeconds) {
+        particles.forEach(particle -> particle.update(deltaSeconds));
+        particles.removeIf(particle -> !particle.isAlive());
     }
 
     private void updateDangerZones(double deltaSeconds) {
@@ -1171,6 +1210,7 @@ public class GameScreen extends StackPane {
         drawHideSpots(gc);
         drawNpcs(gc);
         drawPlayer(gc);
+        drawParticles(gc);
         drawFloatingTexts(gc);
         gc.restore();
         drawTopRibbon(gc);
@@ -1412,6 +1452,18 @@ public class GameScreen extends StackPane {
             gc.fillText(text.text(), text.x(), text.y());
         }
         gc.setTextAlign(TextAlignment.LEFT);
+    }
+
+    private void drawParticles(GraphicsContext gc) {
+        for (ChaosParticle particle : particles) {
+            gc.setFill(particle.color().deriveColor(0, 1, 1, particle.alpha()));
+            gc.fillOval(
+                    particle.x() - particle.size() / 2.0,
+                    particle.y() - particle.size() / 2.0,
+                    particle.size(),
+                    particle.size()
+            );
+        }
     }
 
     private void drawHud(GraphicsContext gc) {
