@@ -164,6 +164,7 @@ public class GameScreen extends StackPane {
     private double meetingAlertTimer;
     private double stagedInteractionTimer;
     private double cinematicCueTimer;
+    private double ambientParticleTimer;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
@@ -232,6 +233,7 @@ public class GameScreen extends StackPane {
             papersMessTimer = Math.max(0, papersMessTimer - deltaSeconds);
             meetingAlertTimer = Math.max(0, meetingAlertTimer - deltaSeconds);
             cinematicCueTimer = Math.max(0, cinematicCueTimer - deltaSeconds);
+            ambientParticleTimer = Math.max(0, ambientParticleTimer - deltaSeconds);
             updateStagedInteraction(deltaSeconds);
             updateKeyboardNap(deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
@@ -249,6 +251,7 @@ public class GameScreen extends StackPane {
             updateDangerZones(deltaSeconds);
             updateFloatingTexts(deltaSeconds);
             updateParticles(deltaSeconds);
+            updateAmbientEffects();
             updateIncidentFeed(deltaSeconds);
             updateNpcs(deltaSeconds);
             updateOfficeProductivity(deltaSeconds);
@@ -303,7 +306,7 @@ public class GameScreen extends StackPane {
         if (dashPressed && !dashHeld && gameState == GameState.PLAYING && player.tryStartDash(input)) {
             addIncident("Cat dash burst");
             addShake(2.5);
-            emitParticles(player.centerX(), player.centerY(), Color.web("#7dd3fc"), 8, 90, 1.0, 3.5);
+            emitParticles(player.centerX(), player.centerY(), Color.web("#7dd3fc"), ChaosParticle.Style.STREAK, 8, 90, 1.0, 3.5);
             floatingTexts.add(new FloatingText(
                     "Dash!",
                     player.centerX(),
@@ -322,7 +325,7 @@ public class GameScreen extends StackPane {
         if (meowPressed && !meowHeld && gameState == GameState.PLAYING && meowCooldownRemaining <= 0) {
             meowCooldownRemaining = MEOW_COOLDOWN_SECONDS;
             chaosPercent = Math.min(100, chaosPercent + MEOW_CHAOS_GAIN);
-            emitParticles(player.centerX(), player.centerY(), Color.web("#c4b5fd"), 10, 80, 1.0, 4.0);
+            emitParticles(player.centerX(), player.centerY(), Color.web("#c4b5fd"), ChaosParticle.Style.RING, 10, 80, 1.0, 4.0);
             chaosEvents.add(new ChaosEvent(
                     "cat meow",
                     player.centerX(),
@@ -371,6 +374,7 @@ public class GameScreen extends StackPane {
         meetingAlertTimer = 0;
         stagedInteractionTimer = 0;
         cinematicCueTimer = 0;
+        ambientParticleTimer = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -576,6 +580,7 @@ public class GameScreen extends StackPane {
             double centerX,
             double centerY,
             Color color,
+            ChaosParticle.Style style,
             int count,
             double speed,
             double lifetimeSeconds,
@@ -591,10 +596,34 @@ public class GameScreen extends StackPane {
                     velocityX,
                     velocityY,
                     Math.max(2.5, size - (i % 4)),
+                    style,
                     color,
                     lifetimeSeconds * (0.7 + (i % 5) * 0.08)
             ));
         }
+    }
+
+    private void emitAmbientParticle(
+            double centerX,
+            double centerY,
+            Color color,
+            ChaosParticle.Style style,
+            double speedX,
+            double speedY,
+            double lifetimeSeconds,
+            double size
+    ) {
+        double angle = animationClock * 1.8;
+        particles.add(new ChaosParticle(
+                centerX + Math.cos(angle) * 6,
+                centerY + Math.sin(angle * 0.7) * 6,
+                Math.cos(angle) * speedX * 0.2,
+                -speedY * 0.35,
+                size,
+                style,
+                color,
+                lifetimeSeconds
+        ));
     }
 
     private ChaosObjective nextObjective() {
@@ -742,7 +771,7 @@ public class GameScreen extends StackPane {
     private void startWifiOutage(ChaosInteraction interaction) {
         wifiOutageTimer = WIFI_OUTAGE_DURATION_SECONDS;
         addIncident("Office Wi-Fi outage triggered");
-        emitParticles(interaction.x(), interaction.y(), Color.web("#93c5fd"), 14, 110, 1.2, 5.0);
+        emitParticles(interaction.x(), interaction.y(), Color.web("#93c5fd"), ChaosParticle.Style.RING, 14, 110, 1.2, 5.0);
         floatingTexts.add(new FloatingText(
                 "Wi-Fi offline!",
                 interaction.x(),
@@ -756,7 +785,7 @@ public class GameScreen extends StackPane {
     private void startMugSpill(ChaosInteraction interaction) {
         mugSpillTimer = MUG_SPILL_DURATION_SECONDS;
         addIncident("Coffee spilled across the kitchen");
-        emitParticles(interaction.x(), interaction.y(), Color.web("#b45309"), 16, 120, 1.1, 5.5);
+        emitParticles(interaction.x(), interaction.y(), Color.web("#b45309"), ChaosParticle.Style.DOT, 16, 120, 1.1, 5.5);
         floatingTexts.add(new FloatingText(
                 "Coffee flood!",
                 interaction.x(),
@@ -769,7 +798,7 @@ public class GameScreen extends StackPane {
     private void startPaperMess(ChaosInteraction interaction) {
         papersMessTimer = PAPERS_MESS_DURATION_SECONDS;
         addIncident("Director papers launched into chaos");
-        emitParticles(interaction.x(), interaction.y(), Color.web("#f8fafc"), 18, 140, 1.4, 4.5);
+        emitParticles(interaction.x(), interaction.y(), Color.web("#f8fafc"), ChaosParticle.Style.SQUARE, 18, 140, 1.4, 4.5);
         floatingTexts.add(new FloatingText(
                 "Paper storm!",
                 interaction.x(),
@@ -782,7 +811,7 @@ public class GameScreen extends StackPane {
     private void startMeetingDisruption(ChaosInteraction interaction) {
         meetingAlertTimer = MEETING_ALERT_DURATION_SECONDS;
         addIncident("Meeting room thrown into confusion");
-        emitParticles(interaction.x(), interaction.y(), Color.web("#c4b5fd"), 18, 130, 1.3, 4.8);
+        emitParticles(interaction.x(), interaction.y(), Color.web("#c4b5fd"), ChaosParticle.Style.STREAK, 18, 130, 1.3, 4.8);
         floatingTexts.add(new FloatingText(
                 "Meeting ruined!",
                 interaction.x(),
@@ -820,6 +849,28 @@ public class GameScreen extends StackPane {
     private void updateParticles(double deltaSeconds) {
         particles.forEach(particle -> particle.update(deltaSeconds));
         particles.removeIf(particle -> !particle.isAlive());
+    }
+
+    private void updateAmbientEffects() {
+        if (ambientParticleTimer > 0) {
+            return;
+        }
+
+        ambientParticleTimer = 0.18;
+        emitAmbientParticle(1124, 814, Color.web("#fde68a"), ChaosParticle.Style.DOT, 14, 18, 1.4, 3.0);
+
+        if (wifiOutageTimer > 0) {
+            emitAmbientParticle(1372, 640, Color.web("#93c5fd"), ChaosParticle.Style.RING, 10, 12, 0.7, 8.0);
+        }
+        if (mugSpillTimer > 0) {
+            emitAmbientParticle(1665, 210, Color.web("#fde68a"), ChaosParticle.Style.DOT, 4, 14, 0.9, 2.5);
+        }
+        if (papersMessTimer > 0) {
+            emitAmbientParticle(1512, 590, Color.web("#f8fafc"), ChaosParticle.Style.SQUARE, 20, 18, 1.1, 3.0);
+        }
+        if (meetingAlertTimer > 0) {
+            emitAmbientParticle(1120, 244, Color.web("#c4b5fd"), ChaosParticle.Style.STREAK, 12, 16, 0.8, 4.0);
+        }
     }
 
     private void updateDangerZones(double deltaSeconds) {
@@ -1457,12 +1508,39 @@ public class GameScreen extends StackPane {
     private void drawParticles(GraphicsContext gc) {
         for (ChaosParticle particle : particles) {
             gc.setFill(particle.color().deriveColor(0, 1, 1, particle.alpha()));
-            gc.fillOval(
-                    particle.x() - particle.size() / 2.0,
-                    particle.y() - particle.size() / 2.0,
-                    particle.size(),
-                    particle.size()
-            );
+            gc.setStroke(particle.color().deriveColor(0, 1, 1, particle.alpha()));
+            switch (particle.style()) {
+                case DOT -> gc.fillOval(
+                        particle.x() - particle.size() / 2.0,
+                        particle.y() - particle.size() / 2.0,
+                        particle.size(),
+                        particle.size()
+                );
+                case SQUARE -> gc.fillRect(
+                        particle.x() - particle.size() / 2.0,
+                        particle.y() - particle.size() / 2.0,
+                        particle.size(),
+                        particle.size()
+                );
+                case STREAK -> {
+                    gc.setLineWidth(2);
+                    gc.strokeLine(
+                            particle.x() - particle.size(),
+                            particle.y() - particle.size() * 0.35,
+                            particle.x() + particle.size(),
+                            particle.y() + particle.size() * 0.35
+                    );
+                }
+                case RING -> {
+                    gc.setLineWidth(2);
+                    gc.strokeOval(
+                            particle.x() - particle.size() / 2.0,
+                            particle.y() - particle.size() / 2.0,
+                            particle.size(),
+                            particle.size()
+                    );
+                }
+            }
         }
     }
 

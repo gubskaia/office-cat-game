@@ -3,6 +3,14 @@ package cat.game.officecatgame;
 import javafx.scene.paint.Color;
 
 public class ChaosParticle {
+    public enum Style {
+        DOT,
+        SQUARE,
+        STREAK,
+        RING
+    }
+
+    private final Style style;
     private final Color color;
     private final double size;
     private double x;
@@ -17,6 +25,7 @@ public class ChaosParticle {
             double velocityX,
             double velocityY,
             double size,
+            Style style,
             Color color,
             double lifetimeSeconds
     ) {
@@ -25,6 +34,7 @@ public class ChaosParticle {
         this.velocityX = velocityX;
         this.velocityY = velocityY;
         this.size = size;
+        this.style = style;
         this.color = color;
         this.timeLeft = lifetimeSeconds;
     }
@@ -59,5 +69,9 @@ public class ChaosParticle {
 
     public Color color() {
         return color;
+    }
+
+    public Style style() {
+        return style;
     }
 }
