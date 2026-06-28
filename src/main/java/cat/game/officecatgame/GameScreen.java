@@ -166,6 +166,8 @@ public class GameScreen extends StackPane {
     private double cinematicCueTimer;
     private double ambientParticleTimer;
     private double executiveEscalationTimer;
+    private double directorMeltdownTimer;
+    private double directorMeltdownPulseTimer;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
@@ -236,6 +238,8 @@ public class GameScreen extends StackPane {
             cinematicCueTimer = Math.max(0, cinematicCueTimer - deltaSeconds);
             ambientParticleTimer = Math.max(0, ambientParticleTimer - deltaSeconds);
             executiveEscalationTimer = Math.max(0, executiveEscalationTimer - deltaSeconds);
+            directorMeltdownTimer = Math.max(0, directorMeltdownTimer - deltaSeconds);
+            directorMeltdownPulseTimer = Math.max(0, directorMeltdownPulseTimer - deltaSeconds);
             updateStagedInteraction(deltaSeconds);
             updateKeyboardNap(deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
@@ -379,6 +383,8 @@ public class GameScreen extends StackPane {
         cinematicCueTimer = 0;
         ambientParticleTimer = 0;
         executiveEscalationTimer = 0;
+        directorMeltdownTimer = 0;
+        directorMeltdownPulseTimer = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -822,6 +828,8 @@ public class GameScreen extends StackPane {
 
     private void startPaperMess(ChaosInteraction interaction) {
         papersMessTimer = PAPERS_MESS_DURATION_SECONDS;
+        directorMeltdownTimer = 5.6;
+        directorMeltdownPulseTimer = 0.55;
         addIncident("Director papers launched into chaos");
         emitParticles(interaction.x(), interaction.y(), Color.web("#f8fafc"), ChaosParticle.Style.SQUARE, 18, 140, 1.4, 4.5);
         floatingTexts.add(new FloatingText(
@@ -830,6 +838,13 @@ public class GameScreen extends StackPane {
                 interaction.y() - 34,
                 Color.web("#a7f3d0"),
                 1.2
+        ));
+        floatingTexts.add(new FloatingText(
+                "Director meltdown!",
+                interaction.x(),
+                interaction.y() - 56,
+                Color.web("#fda4af"),
+                1.4
         ));
     }
 
@@ -899,6 +914,29 @@ public class GameScreen extends StackPane {
     }
 
     private void updateEscalatingStates(double deltaSeconds) {
+        if (directorMeltdownTimer > 0 && directorMeltdownPulseTimer == 0) {
+            directorMeltdownPulseTimer = 1.0;
+            chaosPercent = Math.min(100, chaosPercent + 2.2);
+            chaosEvents.add(new ChaosEvent(
+                    "director meltdown",
+                    1512,
+                    604,
+                    240,
+                    7.8,
+                    2.1
+            ));
+            emitParticles(1512, 604, Color.web("#fda4af"), ChaosParticle.Style.STREAK, 14, 150, 1.2, 5.2);
+            floatingTexts.add(new FloatingText(
+                    "Chaos wave +2",
+                    1512,
+                    520,
+                    Color.web("#fda4af"),
+                    1.0
+            ));
+            addIncident("Director office chaos surge");
+            addShake(4.5);
+        }
+
         if (papersMessTimer > 0) {
             if (executiveEscalationTimer == 0) {
                 executiveEscalationTimer = 2.2;
@@ -1595,6 +1633,10 @@ public class GameScreen extends StackPane {
             gc.setFill(Color.rgb(251, 113, 133, 0.06 + 0.03 * Math.sin(animationClock * 6)));
             gc.fillRect(0, 0, WIDTH, HEIGHT);
         }
+        if (directorMeltdownTimer > 0 && zone.contains("DIRECTOR")) {
+            gc.setFill(Color.rgb(239, 68, 68, 0.1 + 0.05 * Math.sin(animationClock * 10)));
+            gc.fillRect(0, 0, WIDTH, HEIGHT);
+        }
     }
 
     private void drawParticles(GraphicsContext gc) {
@@ -1831,14 +1873,21 @@ public class GameScreen extends StackPane {
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
             gc.fillText(String.format("DIRECTOR PRESSURE %.0fs", Math.ceil(papersMessTimer)), 708, 132);
         }
+        if (directorMeltdownTimer > 0) {
+            drawPanel(gc, 690, 154, 320, 42, Color.web("#ef4444"));
+            gc.setFill(Color.web("#fff1f2"));
+            gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+            gc.fillText(String.format("DIRECTOR MELTDOWN %.0fs", Math.ceil(directorMeltdownTimer)), 708, 180);
+        }
         if (cinematicCueTimer > 0) {
             double alpha = Math.min(1.0, cinematicCueTimer / 0.9);
             gc.setFill(Color.rgb(10, 15, 25, 0.82 * alpha));
-            gc.fillRoundRect(734, papersMessTimer > 0 ? 154 : 106, 492, 38, 16, 16);
+            double cueY = directorMeltdownTimer > 0 ? 202 : (papersMessTimer > 0 ? 154 : 106);
+            gc.fillRoundRect(734, cueY, 492, 38, 16, 16);
             gc.setFill(cinematicCueColor.deriveColor(0, 1, 1, alpha));
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 18));
             gc.setTextAlign(TextAlignment.CENTER);
-            gc.fillText(cinematicCueText, 980, papersMessTimer > 0 ? 179 : 131);
+            gc.fillText(cinematicCueText, 980, cueY + 25);
             gc.setTextAlign(TextAlignment.LEFT);
         }
     }
