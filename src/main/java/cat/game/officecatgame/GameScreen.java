@@ -918,6 +918,14 @@ public class GameScreen extends StackPane {
                         Color.web("#fca5a5"),
                         1.0
                 ));
+                if (dangerZoneCreateCooldown <= 1.0) {
+                    dangerZones.add(new DangerZone(
+                            1512,
+                            620,
+                            DANGER_ZONE_RADIUS * 0.85,
+                            4.2
+                    ));
+                }
             }
         } else {
             executiveEscalationTimer = 0;
@@ -1383,6 +1391,7 @@ public class GameScreen extends StackPane {
         drawMeetingFloor(gc, MEETING_ROOM);
         drawKitchenFloor(gc, KITCHEN_ROOM);
         drawWoodFloor(gc, DIRECTOR_ROOM, Color.web("#8c5a2e"), Color.web("#c58c4c"));
+        drawAmbientRoomLighting(gc);
         drawRoomDepth(gc, OPEN_SPACE_ROOM);
         drawRoomDepth(gc, MEETING_ROOM);
         drawRoomDepth(gc, KITCHEN_ROOM);
@@ -1816,14 +1825,20 @@ public class GameScreen extends StackPane {
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
             gc.fillText(String.format("MEETING MELTDOWN %.0fs", Math.ceil(meetingAlertTimer)), 708, 84);
         }
+        if (papersMessTimer > 0) {
+            drawPanel(gc, 690, 106, 320, 42, Color.web("#fb7185"));
+            gc.setFill(Color.web("#fff1f2"));
+            gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+            gc.fillText(String.format("DIRECTOR PRESSURE %.0fs", Math.ceil(papersMessTimer)), 708, 132);
+        }
         if (cinematicCueTimer > 0) {
             double alpha = Math.min(1.0, cinematicCueTimer / 0.9);
             gc.setFill(Color.rgb(10, 15, 25, 0.82 * alpha));
-            gc.fillRoundRect(734, 106, 492, 38, 16, 16);
+            gc.fillRoundRect(734, papersMessTimer > 0 ? 154 : 106, 492, 38, 16, 16);
             gc.setFill(cinematicCueColor.deriveColor(0, 1, 1, alpha));
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 18));
             gc.setTextAlign(TextAlignment.CENTER);
-            gc.fillText(cinematicCueText, 980, 131);
+            gc.fillText(cinematicCueText, 980, papersMessTimer > 0 ? 179 : 131);
             gc.setTextAlign(TextAlignment.LEFT);
         }
     }
@@ -2007,6 +2022,26 @@ public class GameScreen extends StackPane {
         gc.setLineWidth(1);
         for (double y = room.y() + 18; y < room.y() + room.height(); y += 42) {
             gc.strokeLine(room.x(), y, room.x() + room.width(), y);
+        }
+    }
+
+    private void drawAmbientRoomLighting(GraphicsContext gc) {
+        gc.setFill(Color.rgb(255, 255, 255, 0.08));
+        gc.fillOval(1460, 116, 220, 120);
+        gc.setFill(Color.rgb(252, 211, 77, 0.08));
+        gc.fillOval(1030, 720, 180, 90);
+
+        if (wifiOutageTimer > 0) {
+            gc.setFill(Color.rgb(96, 165, 250, 0.08));
+            gc.fillOval(1310, 540, 160, 160);
+        }
+        if (meetingAlertTimer > 0) {
+            gc.setFill(Color.rgb(196, 181, 253, 0.08));
+            gc.fillOval(980, 150, 240, 120);
+        }
+        if (papersMessTimer > 0) {
+            gc.setFill(Color.rgb(251, 113, 133, 0.07));
+            gc.fillOval(1380, 560, 280, 140);
         }
     }
 
