@@ -168,6 +168,8 @@ public class GameScreen extends StackPane {
     private double executiveEscalationTimer;
     private double directorMeltdownTimer;
     private double directorMeltdownPulseTimer;
+    private double meetingCascadeTimer;
+    private double meetingCascadePulseTimer;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
@@ -240,6 +242,8 @@ public class GameScreen extends StackPane {
             executiveEscalationTimer = Math.max(0, executiveEscalationTimer - deltaSeconds);
             directorMeltdownTimer = Math.max(0, directorMeltdownTimer - deltaSeconds);
             directorMeltdownPulseTimer = Math.max(0, directorMeltdownPulseTimer - deltaSeconds);
+            meetingCascadeTimer = Math.max(0, meetingCascadeTimer - deltaSeconds);
+            meetingCascadePulseTimer = Math.max(0, meetingCascadePulseTimer - deltaSeconds);
             updateStagedInteraction(deltaSeconds);
             updateKeyboardNap(deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
@@ -385,6 +389,8 @@ public class GameScreen extends StackPane {
         executiveEscalationTimer = 0;
         directorMeltdownTimer = 0;
         directorMeltdownPulseTimer = 0;
+        meetingCascadeTimer = 0;
+        meetingCascadePulseTimer = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -850,6 +856,8 @@ public class GameScreen extends StackPane {
 
     private void startMeetingDisruption(ChaosInteraction interaction) {
         meetingAlertTimer = MEETING_ALERT_DURATION_SECONDS;
+        meetingCascadeTimer = 4.8;
+        meetingCascadePulseTimer = 0.5;
         addIncident("Meeting room thrown into confusion");
         emitParticles(interaction.x(), interaction.y(), Color.web("#c4b5fd"), ChaosParticle.Style.STREAK, 18, 130, 1.3, 4.8);
         floatingTexts.add(new FloatingText(
@@ -858,6 +866,13 @@ public class GameScreen extends StackPane {
                 interaction.y() - 34,
                 Color.web("#c4b5fd"),
                 1.2
+        ));
+        floatingTexts.add(new FloatingText(
+                "Conference panic!",
+                interaction.x(),
+                interaction.y() - 56,
+                Color.web("#ddd6fe"),
+                1.3
         ));
         addShake(3.4);
     }
@@ -914,6 +929,37 @@ public class GameScreen extends StackPane {
     }
 
     private void updateEscalatingStates(double deltaSeconds) {
+        if (meetingCascadeTimer > 0 && meetingCascadePulseTimer == 0) {
+            meetingCascadePulseTimer = 0.95;
+            chaosPercent = Math.min(100, chaosPercent + 1.8);
+            chaosEvents.add(new ChaosEvent(
+                    "meeting panic",
+                    1120,
+                    244,
+                    220,
+                    7.1,
+                    1.8
+            ));
+            emitParticles(1120, 244, Color.web("#ddd6fe"), ChaosParticle.Style.RING, 12, 120, 1.0, 6.0);
+            floatingTexts.add(new FloatingText(
+                    "Panic wave +2",
+                    1120,
+                    168,
+                    Color.web("#ddd6fe"),
+                    1.0
+            ));
+            addIncident("Meeting room panic surge");
+            addShake(3.8);
+            if (dangerZoneCreateCooldown <= 1.0) {
+                dangerZones.add(new DangerZone(
+                        1120,
+                        256,
+                        DANGER_ZONE_RADIUS * 0.78,
+                        3.8
+                ));
+            }
+        }
+
         if (directorMeltdownTimer > 0 && directorMeltdownPulseTimer == 0) {
             directorMeltdownPulseTimer = 1.0;
             chaosPercent = Math.min(100, chaosPercent + 2.2);
@@ -1629,6 +1675,10 @@ public class GameScreen extends StackPane {
             gc.setFill(Color.rgb(139, 92, 246, 0.08 + 0.04 * Math.sin(animationClock * 8)));
             gc.fillRect(0, 0, WIDTH, HEIGHT);
         }
+        if (meetingCascadeTimer > 0 && zone.contains("MEETING")) {
+            gc.setFill(Color.rgb(196, 181, 253, 0.11 + 0.05 * Math.sin(animationClock * 10)));
+            gc.fillRect(0, 0, WIDTH, HEIGHT);
+        }
         if (papersMessTimer > 0 && zone.contains("DIRECTOR")) {
             gc.setFill(Color.rgb(251, 113, 133, 0.06 + 0.03 * Math.sin(animationClock * 6)));
             gc.fillRect(0, 0, WIDTH, HEIGHT);
@@ -1867,22 +1917,33 @@ public class GameScreen extends StackPane {
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
             gc.fillText(String.format("MEETING MELTDOWN %.0fs", Math.ceil(meetingAlertTimer)), 708, 84);
         }
+        if (meetingCascadeTimer > 0) {
+            drawPanel(gc, 690, 106, 320, 42, Color.web("#a78bfa"));
+            gc.setFill(Color.web("#f5f3ff"));
+            gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+            gc.fillText(String.format("MEETING PANIC %.0fs", Math.ceil(meetingCascadeTimer)), 708, 132);
+        }
         if (papersMessTimer > 0) {
-            drawPanel(gc, 690, 106, 320, 42, Color.web("#fb7185"));
+            drawPanel(gc, 690, meetingCascadeTimer > 0 ? 154 : 106, 320, 42, Color.web("#fb7185"));
             gc.setFill(Color.web("#fff1f2"));
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
-            gc.fillText(String.format("DIRECTOR PRESSURE %.0fs", Math.ceil(papersMessTimer)), 708, 132);
+            gc.fillText(String.format("DIRECTOR PRESSURE %.0fs", Math.ceil(papersMessTimer)), 708, meetingCascadeTimer > 0 ? 180 : 132);
         }
         if (directorMeltdownTimer > 0) {
-            drawPanel(gc, 690, 154, 320, 42, Color.web("#ef4444"));
+            double meltdownY = meetingCascadeTimer > 0 ? 202 : (papersMessTimer > 0 ? 154 : 106);
+            drawPanel(gc, 690, meltdownY, 320, 42, Color.web("#ef4444"));
             gc.setFill(Color.web("#fff1f2"));
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
-            gc.fillText(String.format("DIRECTOR MELTDOWN %.0fs", Math.ceil(directorMeltdownTimer)), 708, 180);
+            gc.fillText(String.format("DIRECTOR MELTDOWN %.0fs", Math.ceil(directorMeltdownTimer)), 708, meltdownY + 26);
         }
         if (cinematicCueTimer > 0) {
             double alpha = Math.min(1.0, cinematicCueTimer / 0.9);
             gc.setFill(Color.rgb(10, 15, 25, 0.82 * alpha));
-            double cueY = directorMeltdownTimer > 0 ? 202 : (papersMessTimer > 0 ? 154 : 106);
+            double cueY = directorMeltdownTimer > 0
+                    ? (meetingCascadeTimer > 0 ? 250 : 202)
+                    : (papersMessTimer > 0
+                    ? (meetingCascadeTimer > 0 ? 202 : 154)
+                    : (meetingCascadeTimer > 0 ? 154 : 106));
             gc.fillRoundRect(734, cueY, 492, 38, 16, 16);
             gc.setFill(cinematicCueColor.deriveColor(0, 1, 1, alpha));
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 18));
