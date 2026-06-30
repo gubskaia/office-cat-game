@@ -1651,6 +1651,7 @@ public class GameScreen extends StackPane {
         drawInteractions(gc);
         drawSupportSpots(gc);
         drawHideSpots(gc);
+        drawWorldPrompts(gc);
         drawNpcs(gc);
         drawPlayer(gc);
         drawParticles(gc);
@@ -2022,6 +2023,58 @@ public class GameScreen extends StackPane {
         }
     }
 
+    private void drawWorldPrompts(GraphicsContext gc) {
+        if (gameState != GameState.PLAYING) {
+            return;
+        }
+
+        ChaosInteraction nearest = getNearestInteraction();
+        CatSupportSpot nearestSupportSpot = getNearestSupportSpot();
+        HideSpot nearestHideSpot = getNearestHideSpot();
+
+        if (player.isHidden() && activeHideSpot != null) {
+            drawWorldCallout(gc, activeHideSpot.x(), activeHideSpot.y() - 54, "Exit [E]", Color.web("#34d399"));
+            return;
+        }
+
+        if (nearestHideSpot != null && shouldPreferHideSpot(nearestHideSpot, nearest, nearestSupportSpot)) {
+            drawWorldCallout(gc, nearestHideSpot.x(), nearestHideSpot.y() - 56, "Hide [E]", Color.web("#22c55e"));
+            return;
+        }
+
+        if (nearestSupportSpot != null && shouldPreferSupportSpot(nearestSupportSpot, nearest, nearestHideSpot)) {
+            String label = nearestSupportSpot.canUse() ? "Boost [E]" : "Recharging";
+            drawWorldCallout(gc, nearestSupportSpot.x(), nearestSupportSpot.y() - 40, label, Color.web("#f59e0b"));
+            return;
+        }
+
+        if (nearest != null) {
+            drawWorldCallout(gc, nearest.x(), nearest.y() - 48, "Interact [E]", nearest.color());
+        }
+    }
+
+    private void drawWorldCallout(GraphicsContext gc, double centerX, double centerY, String text, Color accent) {
+        double width = Math.max(86, text.length() * 7.4 + 24);
+        gc.setFill(Color.rgb(7, 12, 20, 0.22));
+        gc.fillRoundRect(centerX - width / 2.0 + 3, centerY - 11 + 4, width, 24, 12, 12);
+        gc.setFill(Color.rgb(17, 24, 39, 0.90));
+        gc.fillRoundRect(centerX - width / 2.0, centerY - 11, width, 24, 12, 12);
+        gc.setFill(accent.deriveColor(0, 1, 1, 0.92));
+        gc.fillRoundRect(centerX - width / 2.0, centerY - 11, width, 5, 12, 12);
+        gc.setFill(Color.rgb(255, 255, 255, 0.08));
+        gc.fillRoundRect(centerX - width / 2.0 + 8, centerY - 1, width - 16, 4, 8, 8);
+        gc.setStroke(Color.rgb(255, 255, 255, 0.08));
+        gc.setLineWidth(1);
+        gc.strokeRoundRect(centerX - width / 2.0, centerY - 11, width, 24, 12, 12);
+        gc.setFill(Color.web("#fff7ed"));
+        gc.setFont(Font.font("Verdana", FontWeight.BOLD, 11));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setTextBaseline(VPos.CENTER);
+        gc.fillText(text, centerX, centerY + 1);
+        gc.setTextAlign(TextAlignment.LEFT);
+        gc.setTextBaseline(VPos.BASELINE);
+    }
+
     private void drawChaosEvents(GraphicsContext gc) {
         for (ChaosEvent event : chaosEvents) {
             gc.setStroke(Color.rgb(239, 68, 68, 0.25));
@@ -2072,6 +2125,14 @@ public class GameScreen extends StackPane {
             return;
         }
         Image sprite = player.isHidden() ? catHideSprite : currentCatSprite();
+        if (player.isZoomiesActive()) {
+            gc.setStroke(Color.rgb(252, 211, 77, 0.35 + 0.18 * Math.sin(animationClock * 10)));
+            gc.setLineWidth(3);
+            gc.strokeOval(player.centerX() - 30, player.centerY() - 24, 60, 48);
+        } else if (player.isHidden()) {
+            gc.setFill(Color.rgb(52, 211, 153, 0.10 + 0.04 * Math.sin(animationClock * 8)));
+            gc.fillOval(player.centerX() - 24, player.centerY() - 10, 48, 20);
+        }
         drawSpriteShadow(gc, player.centerX(), player.centerY() + 30, PLAYER_DRAW_SIZE * 0.5, 14, player.isDashing() ? 0.14 : 0.24);
         drawCenteredSprite(gc, sprite, player.centerX(), player.centerY(), PLAYER_DRAW_SIZE);
     }
