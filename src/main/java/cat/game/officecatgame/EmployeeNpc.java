@@ -42,13 +42,20 @@ public class EmployeeNpc {
             "Office gossip",
             "Stretching a little"
     };
+    private static final String[] EVACUATION_LINES = {
+            "Too risky here!",
+            "Falling back!",
+            "Need another room!",
+            "Moving out of danger!"
+    };
 
     public enum State {
         WORKING,
         DISTRACTED,
         INVESTIGATING,
         PANICKING,
-        REGROUPING
+        REGROUPING,
+        EVACUATING
     }
 
     private static final double WALK_SPEED = 78.0;
@@ -78,6 +85,8 @@ public class EmployeeNpc {
     private double regroupCooldown;
     private double distractionTimer;
     private double distractionCooldown;
+    private double evacuationTimer;
+    private double evacuationCooldown;
     private int routineIndex;
 
     public EmployeeNpc(String name, Role role, double x, double y, Color color, List<Point> routinePoints) {
@@ -109,6 +118,8 @@ public class EmployeeNpc {
         regroupCooldown = 0;
         distractionTimer = 0;
         distractionCooldown = 0;
+        evacuationTimer = 0;
+        evacuationCooldown = 0;
         routineIndex = 0;
     }
 
@@ -119,6 +130,7 @@ public class EmployeeNpc {
             ChaosEvent strongestEvent,
             double officeAlertLevel,
             boolean officeCollapseActive,
+            Point dangerSource,
             Point regroupPoint,
             List<Rect> walls
     ) {
@@ -129,6 +141,8 @@ public class EmployeeNpc {
         regroupCooldown = Math.max(0, regroupCooldown - deltaSeconds);
         distractionTimer = Math.max(0, distractionTimer - deltaSeconds);
         distractionCooldown = Math.max(0, distractionCooldown - deltaSeconds);
+        evacuationTimer = Math.max(0, evacuationTimer - deltaSeconds);
+        evacuationCooldown = Math.max(0, evacuationCooldown - deltaSeconds);
 
         if (strongestEvent != null) {
             reactToEvent(strongestEvent);
@@ -148,6 +162,22 @@ public class EmployeeNpc {
             regroupCooldown = 5.2;
         }
 
+        if (dangerSource != null
+                && strongestEvent == null
+                && evacuationCooldown == 0
+                && state != State.PANICKING
+                && state != State.INVESTIGATING
+                && !canSeePlayer(player)
+                && distanceTo(dangerSource.x(), dangerSource.y()) < evacuationRange()) {
+            state = State.EVACUATING;
+            reactionText = pickLine(EVACUATION_LINES, name.hashCode() + role.ordinal() * 19);
+            targetX = regroupPoint.x();
+            targetY = regroupPoint.y();
+            productivity = 0.22;
+            evacuationTimer = 3.8;
+            evacuationCooldown = 6.8;
+        }
+
         if (canSeePlayer(player) && state != State.PANICKING) {
             state = State.PANICKING;
             reactionText = pickLine(SPOTTED_LINES, name.hashCode());
@@ -163,6 +193,12 @@ public class EmployeeNpc {
             targetX = homeX;
             targetY = homeY;
             productivity = 0.75;
+        } else if (state == State.EVACUATING && evacuationTimer == 0) {
+            state = State.WORKING;
+            reactionText = "Finding a calm desk";
+            targetX = regroupPoint.x();
+            targetY = regroupPoint.y();
+            productivity = 0.62;
         } else if (state == State.DISTRACTED && distractionTimer == 0) {
             state = State.WORKING;
             reactionText = "Back to work";
@@ -182,7 +218,7 @@ public class EmployeeNpc {
             return;
         }
 
-        if (state == State.INVESTIGATING || state == State.PANICKING || state == State.REGROUPING) {
+        if (state == State.INVESTIGATING || state == State.PANICKING || state == State.REGROUPING || state == State.EVACUATING) {
             moveToward(targetX, targetY, state == State.PANICKING ? INSPECT_SPEED : WALK_SPEED, deltaSeconds, walls);
         } else if (state == State.WORKING) {
             if (officeAlertLevel > 0.15) {
@@ -380,6 +416,15 @@ public class EmployeeNpc {
             case DESIGNER -> 146;
             case ANALYST -> 154;
             case LEAD -> 172;
+        };
+    }
+
+    private double evacuationRange() {
+        return switch (role) {
+            case DEVELOPER -> 150;
+            case DESIGNER -> 166;
+            case ANALYST -> 178;
+            case LEAD -> 190;
         };
     }
 

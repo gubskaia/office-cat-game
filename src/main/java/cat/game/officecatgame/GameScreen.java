@@ -1073,6 +1073,7 @@ public class GameScreen extends StackPane {
 
     private void updateNpcs(double deltaSeconds) {
         for (EmployeeNpc employee : employees) {
+            Point employeeDangerSource = activeDangerSourceFor(employee.x(), employee.y());
             employee.update(
                     deltaSeconds,
                     player,
@@ -1080,6 +1081,7 @@ public class GameScreen extends StackPane {
                     resolveEventForNpc(employee.x(), employee.y(), strongestEventNear(employee.x(), employee.y(), 165)),
                     officeAlertLevel(),
                     officeCollapseTimer > 0,
+                    employeeDangerSource,
                     regroupPointFor(employee),
                     walls
             );
@@ -1254,6 +1256,27 @@ public class GameScreen extends StackPane {
             level += 0.18;
         }
         return Math.min(1.0, level);
+    }
+
+    private Point activeDangerSourceFor(double x, double y) {
+        Rect room = roomAt(x, y);
+        if (room == null) {
+            return null;
+        }
+
+        if (room == KITCHEN_ROOM && mugSpillTimer > 0) {
+            return new Point(1690, 196);
+        }
+        if (room == MEETING_ROOM && (meetingAlertTimer > 0 || meetingCascadeTimer > 0)) {
+            return new Point(1120, 244);
+        }
+        if (room == DIRECTOR_ROOM && (papersMessTimer > 0 || directorMeltdownTimer > 0)) {
+            return new Point(1512, 604);
+        }
+        if (wifiOutageTimer > 0 && Math.hypot(x - 1372, y - 640) < 220) {
+            return new Point(1372, 640);
+        }
+        return null;
     }
 
     private int activeCrisisCount() {
@@ -2585,6 +2608,7 @@ public class GameScreen extends StackPane {
             case PANICKING -> employeePanicFrames.isEmpty() ? employeeIdleSprite : frameAt(employeePanicFrames, 4.0);
             case INVESTIGATING -> employeeWalkFrames.isEmpty() ? employeeIdleSprite : frameAt(employeeWalkFrames, 4.5);
             case DISTRACTED -> employeeReactFrames.isEmpty() ? employeeIdleSprite : frameAt(employeeReactFrames, 4.0);
+            case EVACUATING -> employeeWalkFrames.isEmpty() ? employeeIdleSprite : frameAt(employeeWalkFrames, 6.3);
             case REGROUPING -> employeeWalkFrames.isEmpty() ? employeeIdleSprite : frameAt(employeeWalkFrames, 5.8);
             case WORKING -> employeeIdleSprite;
         };
