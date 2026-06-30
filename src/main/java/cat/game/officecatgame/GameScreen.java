@@ -1246,6 +1246,16 @@ public class GameScreen extends StackPane {
         return Math.min(1.0, level);
     }
 
+    private double securityAlertLevel() {
+        double level = manager.awarenessLevel() * 0.7;
+        level += officeAlertLevel() * 0.45;
+        level += Math.min(0.35, currentChaosPressure() * 0.14);
+        if (officeCollapseTimer > 0) {
+            level += 0.18;
+        }
+        return Math.min(1.0, level);
+    }
+
     private int activeCrisisCount() {
         int count = 0;
         if (wifiOutageTimer > 0) {
@@ -1877,6 +1887,7 @@ public class GameScreen extends StackPane {
         boolean insideDangerZone = dangerZones.stream()
                 .anyMatch(zone -> zone.contains(player.centerX(), player.centerY()));
         double urgencyPulse = 0.76 + 0.24 * (Math.sin(animationClock * 5.0) + 1) / 2.0;
+        double securityLevel = securityAlertLevel();
 
         drawPanel(gc, 20, 596, 330, 108, Color.web("#f97316"));
         drawPanel(gc, 364, 596, 248, 108, Color.web("#22c55e"));
@@ -1918,9 +1929,12 @@ public class GameScreen extends StackPane {
         gc.setFont(Font.font("Verdana", 12));
         gc.fillText("Manager Watch", 990, 622);
         gc.fillText(manager.statusText(), 990, 644);
-        gc.fillText(String.format("Pressure %.0f%%", currentChaosPressure() * 50), 990, 666);
-        gc.fillText("WASD move  E interact", 990, 688);
-        gc.fillText("Shift dash  Space meow", 990, 704);
+        gc.fillText(String.format("Pressure %.0f%%", currentChaosPressure() * 50), 990, 662);
+        gc.fillText(String.format("Suspicion %.0f%%", manager.awarenessLevel() * 100), 990, 678);
+        drawLabeledBar(gc, 990, 684, 228, 16, securityLevel,
+                securityLevel >= 0.72 ? Color.web("#ef4444") : Color.web("#f59e0b"),
+                securityLevel >= 0.72 ? "Security Alert" : "Security Watch");
+        gc.fillText("WASD / E / Shift / Space", 990, 704);
 
         gc.setFill(Color.web("#dbeafe"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));

@@ -33,6 +33,7 @@ public class ManagerNpc {
     private double searchTimer;
     private double lastKnownTargetX;
     private double lastKnownTargetY;
+    private double awarenessLevel;
 
     public ManagerNpc(double x, double y, List<Point> patrolPoints) {
         this.x = x;
@@ -53,6 +54,7 @@ public class ManagerNpc {
         searchTimer = 0;
         lastKnownTargetX = x;
         lastKnownTargetY = y;
+        awarenessLevel = 0;
     }
 
     public void update(
@@ -64,30 +66,43 @@ public class ManagerNpc {
             boolean officeCollapseActive,
             List<Rect> walls
     ) {
+        awarenessLevel = Math.max(0, awarenessLevel - deltaSeconds * 0.12);
         double patrolSpeed = PATROL_SPEED + chaosPressure * 14;
         double chaseSpeed = CHASE_SPEED + chaosPressure * 22;
         double sightRange = 145 + chaosPressure * 26 + (officeCollapseActive ? 22 : 0);
 
-        if (strongestEvent != null && strongestEvent.severity() >= 5.5) {
+        if (canSeePlayer(player, sightRange)) {
+            double distanceFactor = 1.0 - Math.min(1.0, distanceTo(player.centerX(), player.centerY()) / sightRange);
+            double gain = (player.isDashing() ? 1.3 : 0.85) + distanceFactor * 0.9;
+            awarenessLevel = Math.min(1.3, awarenessLevel + gain * deltaSeconds);
+            lastKnownTargetX = playerTarget.x();
+            lastKnownTargetY = playerTarget.y();
+            searchTimer = Math.max(searchTimer, 2.6);
+
+            if (awarenessLevel >= 1.0) {
+                mode = Mode.CHASING;
+                statusText = chaosPressure >= 1.5 ? "Full panic pursuit!" : "Chasing the cat!";
+                moveToward(playerTarget.x(), playerTarget.y(), chaseSpeed, deltaSeconds, walls);
+            } else {
+                mode = Mode.INVESTIGATING;
+                statusText = "Suspicious movement";
+                moveToward(playerTarget.x(), playerTarget.y(), patrolSpeed + 24, deltaSeconds, walls);
+            }
+        } else if (strongestEvent != null && strongestEvent.severity() >= 5.5) {
+            awarenessLevel = Math.max(awarenessLevel, 0.36 + strongestEvent.severity() * 0.035);
             mode = Mode.INVESTIGATING;
             statusText = "Investigating " + strongestEvent.label();
             investigateTimer = 3.6;
             moveToward(strongestEvent.x(), strongestEvent.y(), patrolSpeed + 15, deltaSeconds, walls);
-        } else if (canSeePlayer(player, sightRange)) {
-            mode = Mode.CHASING;
-            statusText = chaosPressure >= 1.5 ? "Full panic pursuit!" : "Chasing the cat!";
-            lastKnownTargetX = playerTarget.x();
-            lastKnownTargetY = playerTarget.y();
-            searchTimer = SEARCH_DURATION_SECONDS;
-            moveToward(playerTarget.x(), playerTarget.y(), chaseSpeed, deltaSeconds, walls);
         } else if (officeCollapseActive) {
+            awarenessLevel = Math.max(awarenessLevel, 0.25);
             mode = Mode.LOCKDOWN;
             statusText = "Locking down the office";
             patrol(deltaSeconds, patrolSpeed + 24, walls);
-        } else if (searchTimer > 0) {
+        } else if (searchTimer > 0 || awarenessLevel > 0.22) {
             searchTimer = Math.max(0, searchTimer - deltaSeconds);
             mode = Mode.SEARCHING;
-            statusText = "Searching last known position";
+            statusText = awarenessLevel > 0.5 ? "Tracking the cat" : "Searching last known position";
             moveToward(lastKnownTargetX, lastKnownTargetY, SEARCH_SPEED, deltaSeconds, walls);
         } else if (investigateTimer > 0) {
             investigateTimer = Math.max(0, investigateTimer - deltaSeconds);
@@ -224,6 +239,10 @@ public class ManagerNpc {
 
     public String statusText() {
         return statusText;
+    }
+
+    public double awarenessLevel() {
+        return Math.min(1.0, awarenessLevel);
     }
 
     public Color color() {
