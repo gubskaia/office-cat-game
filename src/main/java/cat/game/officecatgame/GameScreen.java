@@ -202,6 +202,9 @@ public class GameScreen extends StackPane {
     private boolean startHeld;
     private boolean pauseHeld;
     private boolean restartHeld;
+    private boolean keyboardTakeoverTriggered;
+    private boolean wifiCascadeTriggered;
+    private boolean spillHazardTriggered;
     private GameState gameState = GameState.MENU;
     private String endMessage = "";
 
@@ -420,6 +423,9 @@ public class GameScreen extends StackPane {
         dashHeld = false;
         meowHeld = false;
         endMessage = "";
+        keyboardTakeoverTriggered = false;
+        wifiCascadeTriggered = false;
+        spillHazardTriggered = false;
         player.setPosition(PLAYER_RESPAWN.x(), PLAYER_RESPAWN.y());
         player.setHidden(false);
         player.clearTemporaryEffects();
@@ -813,6 +819,7 @@ public class GameScreen extends StackPane {
 
     private void startKeyboardNap(ChaosInteraction interaction) {
         keyboardNapTimer = 1.45;
+        keyboardTakeoverTriggered = false;
         keyboardNapExitPoint = new Point(interaction.x() - 210, interaction.y() + 18);
         floatingTexts.add(new FloatingText(
                 "Power nap!",
@@ -825,6 +832,7 @@ public class GameScreen extends StackPane {
 
     private void startWifiOutage(ChaosInteraction interaction) {
         wifiOutageTimer = WIFI_OUTAGE_DURATION_SECONDS;
+        wifiCascadeTriggered = false;
         addIncident("Office Wi-Fi outage triggered");
         emitParticles(interaction.x(), interaction.y(), Color.web("#93c5fd"), ChaosParticle.Style.RING, 14, 110, 1.2, 5.0);
         floatingTexts.add(new FloatingText(
@@ -839,6 +847,7 @@ public class GameScreen extends StackPane {
 
     private void startMugSpill(ChaosInteraction interaction) {
         mugSpillTimer = MUG_SPILL_DURATION_SECONDS;
+        spillHazardTriggered = false;
         addIncident("Coffee spilled across the kitchen");
         emitParticles(interaction.x(), interaction.y(), Color.web("#b45309"), ChaosParticle.Style.DOT, 16, 120, 1.1, 5.5);
         floatingTexts.add(new FloatingText(
@@ -899,6 +908,29 @@ public class GameScreen extends StackPane {
         if (keyboardNapTimer <= 0) {
             return;
         }
+
+        if (!keyboardTakeoverTriggered && keyboardNapTimer <= 0.9) {
+            keyboardTakeoverTriggered = true;
+            chaosPercent = Math.min(100, chaosPercent + 1.6);
+            chaosEvents.add(new ChaosEvent(
+                    "keyboard takeover",
+                    520,
+                    244,
+                    180,
+                    6.4,
+                    1.8
+            ));
+            emitParticles(520, 244, Color.web("#fde68a"), ChaosParticle.Style.SQUARE, 10, 90, 0.9, 4.4);
+            floatingTexts.add(new FloatingText(
+                    "Auto-typed disaster +2",
+                    520,
+                    152,
+                    Color.web("#fde68a"),
+                    1.1
+            ));
+            addIncident("Sleeping on the keyboard triggered an accidental message burst");
+        }
+
         keyboardNapTimer = Math.max(0, keyboardNapTimer - deltaSeconds);
         if (keyboardNapTimer == 0) {
             player.setPosition(keyboardNapExitPoint.x(), keyboardNapExitPoint.y());
@@ -947,6 +979,49 @@ public class GameScreen extends StackPane {
     }
 
     private void updateEscalatingStates(double deltaSeconds) {
+        if (wifiOutageTimer > 0 && !wifiCascadeTriggered && wifiOutageTimer <= 6.2) {
+            wifiCascadeTriggered = true;
+            meetingAlertTimer = Math.max(meetingAlertTimer, 3.8);
+            chaosPercent = Math.min(100, chaosPercent + 1.4);
+            chaosEvents.add(new ChaosEvent(
+                    "connection panic",
+                    1120,
+                    244,
+                    210,
+                    6.6,
+                    1.9
+            ));
+            emitParticles(1120, 244, Color.web("#93c5fd"), ChaosParticle.Style.STREAK, 12, 110, 0.95, 4.6);
+            floatingTexts.add(new FloatingText(
+                    "Call frozen +1",
+                    1120,
+                    166,
+                    Color.web("#bfdbfe"),
+                    1.0
+            ));
+            addIncident("Wi-Fi outage spilled over into a frozen meeting call");
+        }
+
+        if (mugSpillTimer > 0 && !spillHazardTriggered && mugSpillTimer <= 5.6) {
+            spillHazardTriggered = true;
+            chaosPercent = Math.min(100, chaosPercent + 1.2);
+            dangerZones.add(new DangerZone(
+                    1684,
+                    216,
+                    DANGER_ZONE_RADIUS * 0.72,
+                    4.8
+            ));
+            emitParticles(1684, 216, Color.web("#f59e0b"), ChaosParticle.Style.DOT, 10, 85, 0.8, 3.8);
+            floatingTexts.add(new FloatingText(
+                    "Slippery floor!",
+                    1684,
+                    146,
+                    Color.web("#fdba74"),
+                    1.0
+            ));
+            addIncident("The coffee spill turned the kitchen into a slip hazard");
+        }
+
         if (activeCrisisCount() >= 2 && chaosPercent >= 40) {
             officeCollapseTimer = Math.max(officeCollapseTimer, 4.8);
         }
