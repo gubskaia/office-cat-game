@@ -30,12 +30,19 @@ public class EmployeeNpc {
             "Someone grab the cat!",
             "The menace is back!"
     };
+    private static final String[] REGROUP_LINES = {
+            "Regrouping!",
+            "Fallback position!",
+            "Need a calmer desk!",
+            "Too much chaos here!"
+    };
 
     public enum State {
         WORKING,
         DISTRACTED,
         INVESTIGATING,
-        PANICKING
+        PANICKING,
+        REGROUPING
     }
 
     private static final double WALK_SPEED = 78.0;
@@ -61,6 +68,8 @@ public class EmployeeNpc {
     private double reportCooldown;
     private double wanderTimer;
     private double breakTimer;
+    private double regroupTimer;
+    private double regroupCooldown;
     private int routineIndex;
 
     public EmployeeNpc(String name, Role role, double x, double y, Color color, List<Point> routinePoints) {
@@ -88,6 +97,8 @@ public class EmployeeNpc {
         reportCooldown = 0;
         wanderTimer = 0;
         breakTimer = 0;
+        regroupTimer = 0;
+        regroupCooldown = 0;
         routineIndex = 0;
     }
 
@@ -97,14 +108,32 @@ public class EmployeeNpc {
             Point playerTarget,
             ChaosEvent strongestEvent,
             double officeAlertLevel,
+            boolean officeCollapseActive,
+            Point regroupPoint,
             List<Rect> walls
     ) {
         reportCooldown = Math.max(0, reportCooldown - deltaSeconds);
         wanderTimer = Math.max(0, wanderTimer - deltaSeconds);
         breakTimer = Math.max(0, breakTimer - deltaSeconds);
+        regroupTimer = Math.max(0, regroupTimer - deltaSeconds);
+        regroupCooldown = Math.max(0, regroupCooldown - deltaSeconds);
 
         if (strongestEvent != null) {
             reactToEvent(strongestEvent);
+        }
+
+        if (officeCollapseActive
+                && strongestEvent == null
+                && state == State.WORKING
+                && regroupCooldown == 0
+                && !canSeePlayer(player)) {
+            state = State.REGROUPING;
+            reactionText = pickLine(REGROUP_LINES, name.hashCode() + role.ordinal() * 13);
+            targetX = regroupPoint.x();
+            targetY = regroupPoint.y();
+            productivity = 0.28;
+            regroupTimer = 3.0;
+            regroupCooldown = 5.2;
         }
 
         if (canSeePlayer(player) && state != State.PANICKING) {
@@ -116,9 +145,15 @@ public class EmployeeNpc {
             productivity = 0.1;
         }
 
-        if (reactionTimer > 0) {
+        if (state == State.REGROUPING && regroupTimer == 0) {
+            state = State.WORKING;
+            reactionText = "Settling down";
+            targetX = homeX;
+            targetY = homeY;
+            productivity = 0.75;
+        } else if (reactionTimer > 0) {
             reactionTimer = Math.max(0, reactionTimer - deltaSeconds);
-        } else if (state != State.WORKING) {
+        } else if (state != State.WORKING && state != State.REGROUPING) {
             state = State.WORKING;
             reactionText = "Back to work";
             targetX = homeX;
@@ -126,7 +161,7 @@ public class EmployeeNpc {
             productivity = 1.0;
         }
 
-        if (state == State.INVESTIGATING || state == State.PANICKING) {
+        if (state == State.INVESTIGATING || state == State.PANICKING || state == State.REGROUPING) {
             moveToward(targetX, targetY, state == State.PANICKING ? INSPECT_SPEED : WALK_SPEED, deltaSeconds, walls);
         } else if (state == State.WORKING) {
             if (officeAlertLevel > 0.15) {

@@ -170,6 +170,8 @@ public class GameScreen extends StackPane {
     private double directorMeltdownPulseTimer;
     private double meetingCascadeTimer;
     private double meetingCascadePulseTimer;
+    private double officeCollapseTimer;
+    private double officeCollapsePulseTimer;
     private double animationClock;
     private double shakeIntensity;
     private double shakePhase;
@@ -244,6 +246,8 @@ public class GameScreen extends StackPane {
             directorMeltdownPulseTimer = Math.max(0, directorMeltdownPulseTimer - deltaSeconds);
             meetingCascadeTimer = Math.max(0, meetingCascadeTimer - deltaSeconds);
             meetingCascadePulseTimer = Math.max(0, meetingCascadePulseTimer - deltaSeconds);
+            officeCollapseTimer = Math.max(0, officeCollapseTimer - deltaSeconds);
+            officeCollapsePulseTimer = Math.max(0, officeCollapsePulseTimer - deltaSeconds);
             updateStagedInteraction(deltaSeconds);
             updateKeyboardNap(deltaSeconds);
             shakeIntensity = Math.max(0, shakeIntensity - SHAKE_DECAY_PER_SECOND * deltaSeconds);
@@ -391,6 +395,8 @@ public class GameScreen extends StackPane {
         directorMeltdownPulseTimer = 0;
         meetingCascadeTimer = 0;
         meetingCascadePulseTimer = 0;
+        officeCollapseTimer = 0;
+        officeCollapsePulseTimer = 0;
         comboCount = 0;
         animationClock = 0;
         shakeIntensity = 0;
@@ -929,6 +935,33 @@ public class GameScreen extends StackPane {
     }
 
     private void updateEscalatingStates(double deltaSeconds) {
+        if (activeCrisisCount() >= 2 && chaosPercent >= 40) {
+            officeCollapseTimer = Math.max(officeCollapseTimer, 4.8);
+        }
+
+        if (officeCollapseTimer > 0 && officeCollapsePulseTimer == 0) {
+            officeCollapsePulseTimer = 1.35;
+            chaosPercent = Math.min(100, chaosPercent + 1.8);
+            chaosEvents.add(new ChaosEvent(
+                    "office collapse",
+                    player.centerX(),
+                    player.centerY(),
+                    260,
+                    7.6,
+                    1.8
+            ));
+            emitParticles(player.centerX(), player.centerY(), Color.web("#fb7185"), ChaosParticle.Style.RING, 12, 120, 0.9, 6.5);
+            floatingTexts.add(new FloatingText(
+                    "Office collapse +2",
+                    player.centerX(),
+                    player.y() - 30,
+                    Color.web("#fb7185"),
+                    1.0
+            ));
+            addIncident("Multiple crises pushed the office toward collapse");
+            addShake(4.0);
+        }
+
         if (meetingCascadeTimer > 0 && meetingCascadePulseTimer == 0) {
             meetingCascadePulseTimer = 0.95;
             chaosPercent = Math.min(100, chaosPercent + 1.8);
@@ -1034,6 +1067,8 @@ public class GameScreen extends StackPane {
                     resolveNpcTarget(employee.x(), employee.y(), player.centerX(), player.centerY()),
                     resolveEventForNpc(employee.x(), employee.y(), strongestEventNear(employee.x(), employee.y(), 165)),
                     officeAlertLevel(),
+                    officeCollapseTimer > 0,
+                    regroupPointFor(employee),
                     walls
             );
             if (employee.canReportCat(player)) {
@@ -1063,6 +1098,7 @@ public class GameScreen extends StackPane {
                 resolveNpcTarget(manager.x(), manager.y(), player.centerX(), player.centerY()),
                 managerEvent,
                 currentChaosPressure(),
+                officeCollapseTimer > 0,
                 walls
         );
 
@@ -1112,6 +1148,9 @@ public class GameScreen extends StackPane {
         }
         if (papersMessTimer > 0) {
             officeProductivity *= 0.9;
+        }
+        if (officeCollapseTimer > 0) {
+            officeProductivity *= 0.84;
         }
 
         if (officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD) {
@@ -1172,6 +1211,9 @@ public class GameScreen extends StackPane {
         if (papersMessTimer > 0) {
             pressure += 0.14;
         }
+        if (officeCollapseTimer > 0) {
+            pressure += 0.32;
+        }
         return Math.min(2.0, pressure);
     }
 
@@ -1192,6 +1234,23 @@ public class GameScreen extends StackPane {
         return Math.min(1.0, level);
     }
 
+    private int activeCrisisCount() {
+        int count = 0;
+        if (wifiOutageTimer > 0) {
+            count++;
+        }
+        if (meetingAlertTimer > 0 || meetingCascadeTimer > 0) {
+            count++;
+        }
+        if (papersMessTimer > 0 || directorMeltdownTimer > 0) {
+            count++;
+        }
+        if (mugSpillTimer > 0) {
+            count++;
+        }
+        return count;
+    }
+
     private ChaosEvent resolveEventForNpc(double actorX, double actorY, ChaosEvent event) {
         if (event == null) {
             return null;
@@ -1201,6 +1260,15 @@ public class GameScreen extends StackPane {
             return event;
         }
         return new ChaosEvent(event.label(), target.x(), target.y(), event.radius(), event.severity(), event.timeLeft());
+    }
+
+    private Point regroupPointFor(EmployeeNpc employee) {
+        return switch (employee.role()) {
+            case DEVELOPER -> new Point(282, 364);
+            case DESIGNER -> new Point(250, 206);
+            case ANALYST -> new Point(1010, 336);
+            case LEAD -> new Point(1248, 520);
+        };
     }
 
     private ChaosEvent resolveManagerEvent(ChaosEvent event) {
@@ -1687,6 +1755,10 @@ public class GameScreen extends StackPane {
             gc.setFill(Color.rgb(239, 68, 68, 0.1 + 0.05 * Math.sin(animationClock * 10)));
             gc.fillRect(0, 0, WIDTH, HEIGHT);
         }
+        if (officeCollapseTimer > 0) {
+            gc.setFill(Color.rgb(239, 68, 68, 0.05 + 0.03 * Math.sin(animationClock * 12)));
+            gc.fillRect(0, 0, WIDTH, HEIGHT);
+        }
     }
 
     private void drawParticles(GraphicsContext gc) {
@@ -1923,14 +1995,23 @@ public class GameScreen extends StackPane {
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
             gc.fillText(String.format("MEETING PANIC %.0fs", Math.ceil(meetingCascadeTimer)), 708, 132);
         }
-        if (papersMessTimer > 0) {
-            drawPanel(gc, 690, meetingCascadeTimer > 0 ? 154 : 106, 320, 42, Color.web("#fb7185"));
+        if (officeCollapseTimer > 0) {
+            drawPanel(gc, 690, 154, 320, 42, Color.web("#ef4444"));
             gc.setFill(Color.web("#fff1f2"));
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
-            gc.fillText(String.format("DIRECTOR PRESSURE %.0fs", Math.ceil(papersMessTimer)), 708, meetingCascadeTimer > 0 ? 180 : 132);
+            gc.fillText(String.format("OFFICE COLLAPSE %.0fs", Math.ceil(officeCollapseTimer)), 708, 180);
+        }
+        if (papersMessTimer > 0) {
+            double pressureY = officeCollapseTimer > 0 ? 202 : (meetingCascadeTimer > 0 ? 154 : 106);
+            drawPanel(gc, 690, pressureY, 320, 42, Color.web("#fb7185"));
+            gc.setFill(Color.web("#fff1f2"));
+            gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+            gc.fillText(String.format("DIRECTOR PRESSURE %.0fs", Math.ceil(papersMessTimer)), 708, pressureY + 26);
         }
         if (directorMeltdownTimer > 0) {
-            double meltdownY = meetingCascadeTimer > 0 ? 202 : (papersMessTimer > 0 ? 154 : 106);
+            double meltdownY = officeCollapseTimer > 0
+                    ? 250
+                    : (meetingCascadeTimer > 0 ? 202 : (papersMessTimer > 0 ? 154 : 106));
             drawPanel(gc, 690, meltdownY, 320, 42, Color.web("#ef4444"));
             gc.setFill(Color.web("#fff1f2"));
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
@@ -1939,11 +2020,13 @@ public class GameScreen extends StackPane {
         if (cinematicCueTimer > 0) {
             double alpha = Math.min(1.0, cinematicCueTimer / 0.9);
             gc.setFill(Color.rgb(10, 15, 25, 0.82 * alpha));
-            double cueY = directorMeltdownTimer > 0
+            double cueY = officeCollapseTimer > 0
+                    ? (directorMeltdownTimer > 0 ? 298 : (papersMessTimer > 0 ? 250 : 202))
+                    : (directorMeltdownTimer > 0
                     ? (meetingCascadeTimer > 0 ? 250 : 202)
                     : (papersMessTimer > 0
                     ? (meetingCascadeTimer > 0 ? 202 : 154)
-                    : (meetingCascadeTimer > 0 ? 154 : 106));
+                    : (meetingCascadeTimer > 0 ? 154 : 106)));
             gc.fillRoundRect(734, cueY, 492, 38, 16, 16);
             gc.setFill(cinematicCueColor.deriveColor(0, 1, 1, alpha));
             gc.setFont(Font.font("Verdana", FontWeight.BOLD, 18));
@@ -2415,6 +2498,7 @@ public class GameScreen extends StackPane {
             case PANICKING -> employeePanicFrames.isEmpty() ? employeeIdleSprite : frameAt(employeePanicFrames, 4.0);
             case INVESTIGATING -> employeeWalkFrames.isEmpty() ? employeeIdleSprite : frameAt(employeeWalkFrames, 4.5);
             case DISTRACTED -> employeeReactFrames.isEmpty() ? employeeIdleSprite : frameAt(employeeReactFrames, 4.0);
+            case REGROUPING -> employeeWalkFrames.isEmpty() ? employeeIdleSprite : frameAt(employeeWalkFrames, 5.8);
             case WORKING -> employeeIdleSprite;
         };
     }
@@ -2424,6 +2508,7 @@ public class GameScreen extends StackPane {
             case CHASING -> managerChaseFrames.isEmpty() ? managerIdleSprite : frameAt(managerChaseFrames, 8.0);
             case SEARCHING -> managerAlertFrames.isEmpty() ? managerIdleSprite : frameAt(managerAlertFrames, 6.0);
             case INVESTIGATING -> managerAlertFrames.isEmpty() ? managerIdleSprite : frameAt(managerAlertFrames, 4.5);
+            case LOCKDOWN -> managerAlertFrames.isEmpty() ? managerIdleSprite : frameAt(managerAlertFrames, 7.4);
             case PATROLLING -> managerWalkFrames.isEmpty() ? managerIdleSprite : frameAt(managerWalkFrames, 6.0);
         };
     }

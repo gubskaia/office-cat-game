@@ -9,7 +9,8 @@ public class ManagerNpc {
         PATROLLING,
         INVESTIGATING,
         CHASING,
-        SEARCHING
+        SEARCHING,
+        LOCKDOWN
     }
 
     private static final double PATROL_SPEED = 95.0;
@@ -60,11 +61,12 @@ public class ManagerNpc {
             Point playerTarget,
             ChaosEvent strongestEvent,
             double chaosPressure,
+            boolean officeCollapseActive,
             List<Rect> walls
     ) {
         double patrolSpeed = PATROL_SPEED + chaosPressure * 14;
         double chaseSpeed = CHASE_SPEED + chaosPressure * 22;
-        double sightRange = 145 + chaosPressure * 26;
+        double sightRange = 145 + chaosPressure * 26 + (officeCollapseActive ? 22 : 0);
 
         if (strongestEvent != null && strongestEvent.severity() >= 5.5) {
             mode = Mode.INVESTIGATING;
@@ -78,6 +80,10 @@ public class ManagerNpc {
             lastKnownTargetY = playerTarget.y();
             searchTimer = SEARCH_DURATION_SECONDS;
             moveToward(playerTarget.x(), playerTarget.y(), chaseSpeed, deltaSeconds, walls);
+        } else if (officeCollapseActive) {
+            mode = Mode.LOCKDOWN;
+            statusText = "Locking down the office";
+            patrol(deltaSeconds, patrolSpeed + 24, walls);
         } else if (searchTimer > 0) {
             searchTimer = Math.max(0, searchTimer - deltaSeconds);
             mode = Mode.SEARCHING;
