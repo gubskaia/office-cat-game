@@ -36,6 +36,12 @@ public class EmployeeNpc {
             "Need a calmer desk!",
             "Too much chaos here!"
     };
+    private static final String[] DISTRACTION_LINES = {
+            "Quick desk chat",
+            "Tiny brain break",
+            "Office gossip",
+            "Stretching a little"
+    };
 
     public enum State {
         WORKING,
@@ -70,6 +76,8 @@ public class EmployeeNpc {
     private double breakTimer;
     private double regroupTimer;
     private double regroupCooldown;
+    private double distractionTimer;
+    private double distractionCooldown;
     private int routineIndex;
 
     public EmployeeNpc(String name, Role role, double x, double y, Color color, List<Point> routinePoints) {
@@ -99,6 +107,8 @@ public class EmployeeNpc {
         breakTimer = 0;
         regroupTimer = 0;
         regroupCooldown = 0;
+        distractionTimer = 0;
+        distractionCooldown = 0;
         routineIndex = 0;
     }
 
@@ -117,6 +127,8 @@ public class EmployeeNpc {
         breakTimer = Math.max(0, breakTimer - deltaSeconds);
         regroupTimer = Math.max(0, regroupTimer - deltaSeconds);
         regroupCooldown = Math.max(0, regroupCooldown - deltaSeconds);
+        distractionTimer = Math.max(0, distractionTimer - deltaSeconds);
+        distractionCooldown = Math.max(0, distractionCooldown - deltaSeconds);
 
         if (strongestEvent != null) {
             reactToEvent(strongestEvent);
@@ -151,6 +163,10 @@ public class EmployeeNpc {
             targetX = homeX;
             targetY = homeY;
             productivity = 0.75;
+        } else if (state == State.DISTRACTED && distractionTimer == 0) {
+            state = State.WORKING;
+            reactionText = "Back to work";
+            productivity = 0.9;
         } else if (reactionTimer > 0) {
             reactionTimer = Math.max(0, reactionTimer - deltaSeconds);
         } else if (state != State.WORKING && state != State.REGROUPING) {
@@ -161,12 +177,28 @@ public class EmployeeNpc {
             productivity = 1.0;
         }
 
+        if (state == State.DISTRACTED) {
+            productivity = role == Role.LEAD ? 0.68 : 0.58;
+            return;
+        }
+
         if (state == State.INVESTIGATING || state == State.PANICKING || state == State.REGROUPING) {
             moveToward(targetX, targetY, state == State.PANICKING ? INSPECT_SPEED : WALK_SPEED, deltaSeconds, walls);
         } else if (state == State.WORKING) {
             if (officeAlertLevel > 0.15) {
                 reactionText = alertText();
                 productivity = Math.max(0.15, 0.65 - officeAlertLevel * 0.45);
+            }
+            if (officeAlertLevel < 0.12
+                    && distractionCooldown == 0
+                    && breakTimer == 0
+                    && distanceTo(homeX, homeY) < 18) {
+                state = State.DISTRACTED;
+                reactionText = pickLine(DISTRACTION_LINES, role.ordinal() * 17 + routineIndex + name.hashCode());
+                distractionTimer = role == Role.LEAD ? 1.0 : 1.6;
+                distractionCooldown = role == Role.LEAD ? 6.5 : 8.5;
+                productivity = role == Role.LEAD ? 0.68 : 0.58;
+                return;
             }
             if (breakTimer > 0) {
                 reactionText = breakText();

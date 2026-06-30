@@ -90,13 +90,25 @@ public class GameScreen extends StackPane {
     private final List<Point> investigationNodes = List.of(
             new Point(334, 244),
             new Point(334, 386),
+            new Point(232, 244),
+            new Point(232, 386),
+            new Point(504, 244),
+            new Point(504, 386),
             new Point(OPEN_SPACE_DOOR_X, 520),
+            new Point(920, 520),
             new Point(1120, 314),
+            new Point(980, 314),
+            new Point(1260, 314),
             new Point(MEETING_DOOR_X, 520),
             new Point(1694, 246),
+            new Point(1560, 246),
             new Point(KITCHEN_DOOR_X, 520),
+            new Point(1440, 520),
             new Point(1288, 742),
+            new Point(1428, 742),
+            new Point(1608, 742),
             new Point(1512, 604),
+            new Point(1512, 806),
             new Point(DIRECTOR_DOOR_X, 520)
     );
     private final List<Point> managerPatrolPath = List.of(
@@ -1284,13 +1296,18 @@ public class GameScreen extends StackPane {
         Rect targetRoom = roomAt(targetX, targetY);
 
         if (actorRoom == targetRoom) {
-            return new Point(targetX, targetY);
+            Point directTarget = new Point(targetX, targetY);
+            return hasClearNpcPath(actorX, actorY, targetX, targetY)
+                    ? directTarget
+                    : bestNavigationWaypoint(actorX, actorY, targetX, targetY, actorRoom);
         }
 
         if (actorRoom != null) {
             Point insideDoor = roomDoorInsidePoint(actorRoom);
             if (Math.hypot(actorX - insideDoor.x(), actorY - insideDoor.y()) > 26) {
-                return insideDoor;
+                return hasClearNpcPath(actorX, actorY, insideDoor.x(), insideDoor.y())
+                        ? insideDoor
+                        : bestNavigationWaypoint(actorX, actorY, insideDoor.x(), insideDoor.y(), actorRoom);
             }
             return roomDoorHallPoint(actorRoom);
         }
@@ -1298,12 +1315,17 @@ public class GameScreen extends StackPane {
         if (targetRoom != null) {
             Point hallPoint = roomDoorHallPoint(targetRoom);
             if (Math.hypot(actorX - hallPoint.x(), actorY - hallPoint.y()) > 32) {
-                return hallPoint;
+                return hasClearNpcPath(actorX, actorY, hallPoint.x(), hallPoint.y())
+                        ? hallPoint
+                        : bestNavigationWaypoint(actorX, actorY, hallPoint.x(), hallPoint.y(), null);
             }
             return roomDoorInsidePoint(targetRoom);
         }
 
-        return new Point(targetX, targetY);
+        if (hasClearNpcPath(actorX, actorY, targetX, targetY)) {
+            return new Point(targetX, targetY);
+        }
+        return bestNavigationWaypoint(actorX, actorY, targetX, targetY, null);
     }
 
     private Rect roomAt(double x, double y) {
@@ -1366,6 +1388,57 @@ public class GameScreen extends StackPane {
             }
         }
         return best;
+    }
+
+    private Point bestNavigationWaypoint(double actorX, double actorY, double targetX, double targetY, Rect preferredRoom) {
+        Point best = new Point(targetX, targetY);
+        double bestScore = Double.MAX_VALUE;
+
+        for (Point node : investigationNodes) {
+            Rect nodeRoom = roomAt(node.x(), node.y());
+            boolean compatibleRoom = preferredRoom == null
+                    || nodeRoom == preferredRoom
+                    || nodeRoom == null;
+            if (!compatibleRoom) {
+                continue;
+            }
+
+            boolean reachableFromActor = hasClearNpcPath(actorX, actorY, node.x(), node.y());
+            boolean reachableToTarget = hasClearNpcPath(node.x(), node.y(), targetX, targetY);
+            if (!reachableFromActor && !reachableToTarget) {
+                continue;
+            }
+
+            double score = Math.hypot(actorX - node.x(), actorY - node.y())
+                    + Math.hypot(targetX - node.x(), targetY - node.y());
+            if (reachableFromActor && reachableToTarget) {
+                score -= 80;
+            }
+            if (score < bestScore) {
+                bestScore = score;
+                best = node;
+            }
+        }
+
+        return best;
+    }
+
+    private boolean hasClearNpcPath(double startX, double startY, double endX, double endY) {
+        double distance = Math.hypot(endX - startX, endY - startY);
+        int samples = Math.max(4, (int) (distance / 18));
+
+        for (int i = 1; i < samples; i++) {
+            double progress = i / (double) samples;
+            double sampleX = startX + (endX - startX) * progress;
+            double sampleY = startY + (endY - startY) * progress;
+            Rect probe = new Rect(sampleX - 12, sampleY - 12, 24, 24);
+            for (Rect wall : walls) {
+                if (probe.intersects(wall)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private ChaosEvent strongestEventNear(double x, double y, double maxDistance) {
