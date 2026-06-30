@@ -1895,6 +1895,7 @@ public class GameScreen extends StackPane {
                 gc.setLineWidth(4);
                 gc.strokeOval(interaction.x() - pulse, interaction.y() - pulse, pulse * 2, pulse * 2);
             }
+            drawInteractionHotspot(gc, interaction);
             Image sprite = interactionSprite(interaction);
             if (sprite != null) {
                 drawSpriteShadow(gc, interaction.x(), interaction.y() + interactionSize(interaction) * 0.18, interactionSize(interaction) * 0.52, 14, 0.18);
@@ -1916,6 +1917,49 @@ public class GameScreen extends StackPane {
         }
     }
 
+    private void drawInteractionHotspot(GraphicsContext gc, ChaosInteraction interaction) {
+        switch (interaction.id()) {
+            case "keyboard" -> {
+                double pulse = 0.08 + 0.04 * (Math.sin(animationClock * 4.5) + 1) / 2.0;
+                gc.setFill(Color.rgb(96, 165, 250, pulse));
+                gc.fillRoundRect(interaction.x() - 46, interaction.y() - 10, 92, 20, 10, 10);
+                gc.setStroke(Color.rgb(191, 219, 254, 0.26));
+                gc.setLineWidth(2);
+                gc.strokeRoundRect(interaction.x() - 48, interaction.y() - 12, 96, 24, 12, 12);
+            }
+            case "meeting" -> {
+                double pulse = 26 + Math.sin(animationClock * 6.0) * 4;
+                gc.setFill(Color.rgb(91, 33, 182, 0.12));
+                gc.fillOval(interaction.x() - 34, interaction.y() - 34, 68, 68);
+                gc.setStroke(Color.rgb(196, 181, 253, 0.42));
+                gc.setLineWidth(2.5);
+                gc.strokeOval(interaction.x() - pulse, interaction.y() - pulse, pulse * 2, pulse * 2);
+                gc.strokeLine(interaction.x(), interaction.y() - 10, interaction.x(), interaction.y() + 12);
+                gc.strokeLine(interaction.x() - 9, interaction.y() + 14, interaction.x() + 9, interaction.y() + 14);
+            }
+            case "wifi" -> {
+                gc.setFill(Color.rgb(239, 68, 68, 0.08));
+                gc.fillRoundRect(interaction.x() - 28, interaction.y() - 18, 56, 36, 14, 14);
+                gc.setStroke(Color.rgb(248, 113, 113, 0.22));
+                gc.setLineWidth(2);
+                gc.strokeRoundRect(interaction.x() - 30, interaction.y() - 20, 60, 40, 16, 16);
+            }
+            case "mug" -> {
+                gc.setFill(Color.rgb(245, 158, 11, 0.08));
+                gc.fillOval(interaction.x() - 24, interaction.y() - 12, 48, 24);
+            }
+            case "papers" -> {
+                gc.setFill(Color.rgb(255, 255, 255, 0.08));
+                gc.fillRoundRect(interaction.x() - 26, interaction.y() - 16, 52, 32, 8, 8);
+                gc.setStroke(Color.rgb(226, 232, 240, 0.18));
+                gc.setLineWidth(1.5);
+                gc.strokeRoundRect(interaction.x() - 28, interaction.y() - 18, 56, 36, 10, 10);
+            }
+            default -> {
+            }
+        }
+    }
+
     private void drawSupportSpots(GraphicsContext gc) {
         gc.setTextAlign(TextAlignment.CENTER);
         for (CatSupportSpot supportSpot : supportSpots) {
@@ -1924,6 +1968,8 @@ public class GameScreen extends StackPane {
                     ? supportSpot.color()
                     : supportSpot.color().deriveColor(0, 0.35, 0.85, 0.65);
 
+            gc.setFill(Color.rgb(17, 24, 39, 0.10));
+            gc.fillRoundRect(supportSpot.x() - 20, supportSpot.y() - 20, 40, 40, 14, 14);
             gc.setFill(fill.deriveColor(0, 1, 1, supportSpot.canUse() ? 0.85 : 0.42));
             gc.fillOval(supportSpot.x() - radius, supportSpot.y() - radius, radius * 2, radius * 2);
             gc.setStroke(fill.brighter());
@@ -2840,7 +2886,7 @@ public class GameScreen extends StackPane {
 
     private Image interactionSprite(ChaosInteraction interaction) {
         return switch (interaction.id()) {
-            case "keyboard" -> keyboardNapTimer > 0 ? sleepingKeyboardSprite : keyboardSprite;
+            case "keyboard" -> keyboardNapTimer > 0 ? sleepingKeyboardSprite : null;
             case "mug" -> interaction.canTrigger() ? mugSprite : mugSpilledSprite;
             case "wifi" -> wifiRouterSprite;
             case "papers" -> interaction.canTrigger() ? papersSprite : papersScatteredSprite;
