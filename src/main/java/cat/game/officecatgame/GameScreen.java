@@ -2238,6 +2238,8 @@ public class GameScreen extends StackPane {
     }
 
     private void drawIncidentFeed(GraphicsContext gc) {
+        gc.setFill(Color.rgb(255, 255, 255, 0.04));
+        gc.fillRoundRect(984, 628, 248, 64, 14, 14);
         gc.setFill(Color.web("#ede9fe"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
         gc.fillText("Recent Incidents", 990, 618);
@@ -2278,6 +2280,8 @@ public class GameScreen extends StackPane {
         gc.fillRect(0, 0, WIDTH, HEIGHT);
 
         drawPanel(gc, 372, 228, 536, 180, Color.web("#ef4444"));
+        gc.setFill(Color.rgb(255, 255, 255, 0.05));
+        gc.fillRoundRect(394, 248, 492, 44, 16, 16);
 
         gc.setFill(Color.web("#fff7ed"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 26));
@@ -2296,6 +2300,9 @@ public class GameScreen extends StackPane {
         gc.fillRect(0, 0, WIDTH, HEIGHT);
 
         drawPanel(gc, 334, 146, 612, 292, Color.web("#f97316"));
+        gc.setFill(Color.rgb(255, 255, 255, 0.05));
+        gc.fillRoundRect(358, 170, 564, 54, 18, 18);
+        gc.fillRoundRect(390, 286, 500, 92, 18, 18);
 
         gc.setFill(Color.web("#fff7ed"));
         gc.setTextAlign(TextAlignment.CENTER);
@@ -2314,7 +2321,9 @@ public class GameScreen extends StackPane {
         gc.fillText("Shift dash   Space meow   E interact   Esc pause", WIDTH / 2.0, 350);
         gc.setFill(Color.web("#fdba74"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 16));
-        gc.fillText("[Enter] Start Run", WIDTH / 2.0, 398);
+        gc.fillRoundRect(WIDTH / 2.0 - 112, 382, 224, 30, 14, 14);
+        gc.setFill(Color.web("#1f2937"));
+        gc.fillText("[Enter] Start Run", WIDTH / 2.0, 402);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 
@@ -2323,6 +2332,8 @@ public class GameScreen extends StackPane {
         gc.fillRect(0, 0, WIDTH, HEIGHT);
 
         drawPanel(gc, 430, 238, 420, 152, Color.web("#60a5fa"));
+        gc.setFill(Color.rgb(255, 255, 255, 0.05));
+        gc.fillRoundRect(454, 258, 372, 40, 16, 16);
 
         gc.setFill(Color.web("#eff6ff"));
         gc.setTextAlign(TextAlignment.CENTER);
@@ -2336,6 +2347,8 @@ public class GameScreen extends StackPane {
     }
 
     private void drawTopRibbon(GraphicsContext gc) {
+        gc.setFill(Color.rgb(17, 24, 39, 0.10));
+        gc.fillRoundRect(12, 6, 1256, 306, 24, 24);
         drawPanel(gc, 18, 10, 344, 42, Color.web("#f97316"));
         drawPanel(gc, 388, 10, 276, 42, Color.web("#34d399"));
         drawPanel(gc, 1038, 10, 224, 42, Color.web("#60a5fa"));
@@ -2663,12 +2676,16 @@ public class GameScreen extends StackPane {
 
     private void drawBottomPrompt(GraphicsContext gc, String text, Color accent, double width) {
         double x = (WIDTH - width) / 2.0;
-        drawPanel(gc, x, 546, width, 40, accent);
+        gc.setFill(Color.rgb(8, 10, 18, 0.18));
+        gc.fillRoundRect(x - 8, 538, width + 16, 56, 18, 18);
+        drawPanel(gc, x, 542, width, 40, accent);
+        gc.setFill(accent.deriveColor(0, 1, 1, 0.12));
+        gc.fillRoundRect(x + 14, 552, width - 28, 10, 10, 10);
         gc.setFill(Color.web("#fff7ed"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
-        gc.fillText(text, WIDTH / 2.0, 566);
+        gc.fillText(text, WIDTH / 2.0, 562);
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.BASELINE);
     }
