@@ -1754,6 +1754,7 @@ public class GameScreen extends StackPane {
             gc.strokeRoundRect(wall.x(), wall.y(), wall.width(), wall.height(), 12, 12);
         }
 
+        drawOfficeDecor(gc);
         drawFurniture(gc);
         drawInteractionAftermath(gc);
     }
@@ -1790,6 +1791,47 @@ public class GameScreen extends StackPane {
             gc.setLineWidth(3);
             gc.strokeOval(994, 164, 252, 136);
         }
+    }
+
+    private void drawOfficeDecor(GraphicsContext gc) {
+        double monitorPulse = 0.10 + 0.05 * (Math.sin(animationClock * 2.6) + 1) / 2.0;
+        double meetingPulse = 0.08 + 0.04 * (Math.sin(animationClock * 3.4 + 1.2) + 1) / 2.0;
+        double kitchenWarmth = 0.10 + 0.03 * (Math.sin(animationClock * 2.2 + 0.5) + 1) / 2.0;
+
+        gc.setFill(Color.rgb(120, 190, 255, monitorPulse));
+        gc.fillRoundRect(448, 126, 150, 42, 12, 12);
+        gc.fillRoundRect(444, 268, 154, 42, 12, 12);
+        gc.fillRoundRect(1322, 586, 132, 42, 12, 12);
+
+        gc.setFill(Color.rgb(255, 255, 255, 0.08));
+        gc.fillRoundRect(458, 132, 128, 10, 8, 8);
+        gc.fillRoundRect(454, 274, 132, 10, 8, 8);
+        gc.fillRoundRect(1330, 592, 116, 10, 8, 8);
+
+        gc.setFill(Color.rgb(160, 120, 255, meetingPulse));
+        gc.fillRoundRect(1010, 152, 220, 26, 14, 14);
+        gc.setStroke(Color.rgb(210, 200, 255, 0.22));
+        gc.setLineWidth(2);
+        gc.strokeRoundRect(1004, 146, 232, 38, 16, 16);
+
+        gc.setFill(Color.rgb(255, 186, 90, kitchenWarmth));
+        gc.fillRoundRect(1534, 138, 182, 18, 10, 10);
+        gc.setFill(Color.rgb(255, 235, 190, 0.08));
+        gc.fillOval(1626, 164 + Math.sin(animationClock * 3.0) * 2, 18, 22);
+        gc.fillOval(1642, 156 + Math.cos(animationClock * 3.0 + 1.2) * 2, 16, 20);
+
+        gc.setFill(Color.rgb(255, 220, 140, 0.10 + 0.03 * Math.sin(animationClock * 2.0)));
+        gc.fillOval(1348, 560, 122, 62);
+        gc.setStroke(Color.rgb(255, 240, 200, 0.16));
+        gc.strokeLine(1400, 560, 1400, 690);
+
+        gc.save();
+        gc.translate(110, 104);
+        gc.rotate(-18);
+        gc.setFill(Color.rgb(255, 255, 255, 0.065));
+        gc.fillRoundRect(0, 0, 92, 430, 16, 16);
+        gc.fillRoundRect(170, -12, 78, 446, 16, 16);
+        gc.restore();
     }
 
     private void drawInteractions(GraphicsContext gc) {
