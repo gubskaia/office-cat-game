@@ -1756,6 +1756,7 @@ public class GameScreen extends StackPane {
 
         drawArchitecturalAccents(gc);
         drawOfficeDecor(gc);
+        drawBuiltInFixtures(gc);
         drawFurniture(gc);
         drawInteractionAftermath(gc);
     }
@@ -1879,6 +1880,37 @@ public class GameScreen extends StackPane {
         gc.fillRoundRect(308, 512, 198, 16, 10, 10);
         gc.fillRoundRect(894, 512, 212, 16, 10, 10);
         gc.fillRoundRect(1498, 512, 204, 16, 10, 10);
+    }
+
+    private void drawBuiltInFixtures(GraphicsContext gc) {
+        drawFixtureSurface(gc, 228, 214, 94, 40, Color.web("#cbb89c"), Color.web("#7c5a3d"));
+        drawFixtureSurface(gc, 228, 356, 94, 40, Color.web("#cbb89c"), Color.web("#7c5a3d"));
+
+        drawFixtureSurface(gc, 1518, 188, 180, 36, Color.web("#d7c1a3"), Color.web("#8b5e34"));
+        drawFixtureSurface(gc, 1518, 228, 128, 24, Color.web("#d7c1a3"), Color.web("#8b5e34"));
+
+        drawFixtureSurface(gc, 1334, 650, 150, 40, Color.web("#d8c3a6"), Color.web("#7b5b40"));
+        drawFixtureSurface(gc, 1618, 742, 120, 26, Color.web("#cfb391"), Color.web("#78563b"));
+        drawFixtureSurface(gc, 1144, 760, 98, 24, Color.web("#cfb391"), Color.web("#78563b"));
+
+        gc.setFill(Color.rgb(17, 24, 39, 0.08));
+        gc.fillRoundRect(1546, 176, 150, 20, 10, 10);
+        gc.fillRoundRect(1348, 636, 122, 18, 10, 10);
+        gc.fillRoundRect(1160, 748, 70, 16, 10, 10);
+    }
+
+    private void drawFixtureSurface(GraphicsContext gc, double x, double y, double width, double height, Color top, Color base) {
+        gc.setFill(Color.rgb(8, 10, 18, 0.12));
+        gc.fillRoundRect(x + 6, y + height - 4, width - 12, 12, 10, 10);
+        gc.setFill(base);
+        gc.fillRoundRect(x, y + 8, width, height - 8, 12, 12);
+        gc.setFill(top);
+        gc.fillRoundRect(x, y, width, 14, 12, 12);
+        gc.setFill(Color.rgb(255, 255, 255, 0.10));
+        gc.fillRoundRect(x + 8, y + 4, width - 16, 4, 8, 8);
+        gc.setStroke(Color.rgb(90, 63, 39, 0.28));
+        gc.setLineWidth(1.5);
+        gc.strokeRoundRect(x + 0.75, y + 0.75, width - 1.5, height - 1.5, 12, 12);
     }
 
     private void drawInteractions(GraphicsContext gc) {
@@ -2677,11 +2709,31 @@ public class GameScreen extends StackPane {
         drawCenteredSprite(gc, chairSprite, 358, 242, 52);
         drawSpriteShadow(gc, 358, 408, 32, 10, 0.18);
         drawCenteredSprite(gc, chairSprite, 358, 384, 52);
+        drawSpriteShadow(gc, 606, 266, 32, 10, 0.18);
+        drawCenteredSprite(gc, chairSprite, 606, 242, 52);
+        drawSpriteShadow(gc, 606, 408, 32, 10, 0.18);
+        drawCenteredSprite(gc, chairSprite, 606, 384, 52);
+        drawSpriteShadow(gc, 1038, 176, 32, 10, 0.14);
+        drawCenteredSprite(gc, chairSprite, 1038, 156, 48);
+        drawSpriteShadow(gc, 1120, 176, 32, 10, 0.14);
+        drawCenteredSprite(gc, chairSprite, 1120, 156, 48);
+        drawSpriteShadow(gc, 1202, 176, 32, 10, 0.14);
+        drawCenteredSprite(gc, chairSprite, 1202, 156, 48);
+        drawSpriteShadow(gc, 1038, 310, 32, 10, 0.14);
+        drawCenteredSprite(gc, chairSprite, 1038, 290, 48);
+        drawSpriteShadow(gc, 1120, 310, 32, 10, 0.14);
+        drawCenteredSprite(gc, chairSprite, 1120, 290, 48);
+        drawSpriteShadow(gc, 1202, 310, 32, 10, 0.14);
+        drawCenteredSprite(gc, chairSprite, 1202, 290, 48);
         drawSpriteShadow(gc, 1282, 764, 32, 10, 0.18);
         drawCenteredSprite(gc, chairSprite, 1282, 740, 52);
+        drawSpriteShadow(gc, 1524, 764, 32, 10, 0.18);
+        drawCenteredSprite(gc, chairSprite, 1524, 740, 52);
 
         drawSpriteShadow(gc, 798, 452, 34, 12, 0.18);
         drawCenteredSprite(gc, plantSprite, 798, 430, 58);
+        drawSpriteShadow(gc, 1450, 352, 32, 12, 0.16);
+        drawCenteredSprite(gc, plantSprite, 1450, 332, 54);
         drawSpriteShadow(gc, 1760, 364, 32, 12, 0.18);
         drawCenteredSprite(gc, plantSprite, 1760, 344, 56);
         drawSpriteShadow(gc, 1116, 832, 32, 12, 0.18);
