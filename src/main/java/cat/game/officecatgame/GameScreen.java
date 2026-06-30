@@ -1808,7 +1808,13 @@ public class GameScreen extends StackPane {
             }
             Image sprite = interactionSprite(interaction);
             if (sprite != null) {
+                drawSpriteShadow(gc, interaction.x(), interaction.y() + interactionSize(interaction) * 0.18, interactionSize(interaction) * 0.52, 14, 0.18);
                 drawCenteredSprite(gc, sprite, interaction.x(), interaction.y(), interactionSize(interaction));
+                if (interaction.canTrigger()) {
+                    gc.setStroke(interaction.color().deriveColor(0, 1, 1, 0.4));
+                    gc.setLineWidth(2);
+                    gc.strokeOval(interaction.x() - 20, interaction.y() - 20, 40, 40);
+                }
             } else {
                 gc.setFill(interaction.color());
                 gc.fillRoundRect(interaction.x() - 16, interaction.y() - 16, 32, 32, 10, 10);
@@ -1844,6 +1850,7 @@ public class GameScreen extends StackPane {
 
     private void drawHideSpots(GraphicsContext gc) {
         for (HideSpot hideSpot : hideSpots) {
+            drawSpriteShadow(gc, hideSpot.x(), hideSpot.y() + 22, PROP_MEDIUM * 0.56, 18, 0.20);
             drawCenteredSprite(gc, boxSprite, hideSpot.x(), hideSpot.y(), PROP_MEDIUM);
         }
     }
@@ -1883,10 +1890,12 @@ public class GameScreen extends StackPane {
 
     private void drawNpcs(GraphicsContext gc) {
         for (EmployeeNpc employee : employees) {
+            drawSpriteShadow(gc, employee.x(), employee.y() + 24, NPC_DRAW_SIZE * 0.42, 12, 0.2);
             drawCenteredSprite(gc, employeeSprite(employee), employee.x(), employee.y(), NPC_DRAW_SIZE);
             drawSpeechTag(gc, employee.x(), employee.y() - 24, employee.reactionText(), Color.web("#1f2937"));
         }
 
+        drawSpriteShadow(gc, manager.x(), manager.y() + 26, NPC_DRAW_SIZE * 0.48, 13, 0.24);
         drawCenteredSprite(gc, managerSprite(), manager.x(), manager.y(), NPC_DRAW_SIZE);
         drawSpeechTag(gc, manager.x(), manager.y() - 28, manager.statusText(), Color.web("#5b21b6"));
     }
@@ -1896,6 +1905,7 @@ public class GameScreen extends StackPane {
             return;
         }
         Image sprite = player.isHidden() ? catHideSprite : currentCatSprite();
+        drawSpriteShadow(gc, player.centerX(), player.centerY() + 30, PLAYER_DRAW_SIZE * 0.5, 14, player.isDashing() ? 0.14 : 0.24);
         drawCenteredSprite(gc, sprite, player.centerX(), player.centerY(), PLAYER_DRAW_SIZE);
     }
 
@@ -2270,10 +2280,14 @@ public class GameScreen extends StackPane {
 
     private void drawRoomBadge(GraphicsContext gc, double x, double y, String label, Color accent) {
         double width = Math.max(116, label.length() * 8.3 + 26);
+        gc.setFill(Color.rgb(7, 12, 20, 0.16));
+        gc.fillRoundRect(x + 3, y + 5, width, 28, 14, 14);
         gc.setFill(Color.rgb(17, 24, 39, 0.88));
         gc.fillRoundRect(x, y, width, 28, 14, 14);
         gc.setFill(accent.deriveColor(0, 1, 1, 0.96));
         gc.fillRoundRect(x, y, width, 6, 14, 14);
+        gc.setFill(Color.rgb(255, 255, 255, 0.08));
+        gc.fillRoundRect(x + 8, y + 10, width - 16, 6, 10, 10);
         gc.setFill(Color.web("#fff7ed"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
         gc.fillText(label, x + 12, y + 20);
@@ -2509,20 +2523,33 @@ public class GameScreen extends StackPane {
     }
 
     private void drawFurniture(GraphicsContext gc) {
+        drawSpriteShadow(gc, 520, 242, 168, 20, 0.14);
         drawCenteredSprite(gc, deskSprite, 520, 188, 258);
+        drawSpriteShadow(gc, 520, 384, 168, 20, 0.14);
         drawCenteredSprite(gc, deskSprite, 520, 330, 258);
+        drawSpriteShadow(gc, 1120, 290, 236, 26, 0.14);
         drawCenteredSprite(gc, meetingTableSprite, 1120, 232, 336);
+        drawSpriteShadow(gc, 1618, 224, 104, 18, 0.12);
         drawCenteredSprite(gc, cabinetSprite, 1618, 178, 156);
+        drawSpriteShadow(gc, 1462, 686, 180, 22, 0.16);
         drawCenteredSprite(gc, deskSprite, 1462, 630, 280);
+        drawSpriteShadow(gc, 1730, 744, 96, 16, 0.12);
         drawCenteredSprite(gc, cabinetSprite, 1730, 700, 138);
+        drawSpriteShadow(gc, 1182, 754, 86, 14, 0.12);
         drawCenteredSprite(gc, cabinetSprite, 1182, 714, 126);
 
+        drawSpriteShadow(gc, 358, 266, 32, 10, 0.18);
         drawCenteredSprite(gc, chairSprite, 358, 242, 52);
+        drawSpriteShadow(gc, 358, 408, 32, 10, 0.18);
         drawCenteredSprite(gc, chairSprite, 358, 384, 52);
+        drawSpriteShadow(gc, 1282, 764, 32, 10, 0.18);
         drawCenteredSprite(gc, chairSprite, 1282, 740, 52);
 
+        drawSpriteShadow(gc, 798, 452, 34, 12, 0.18);
         drawCenteredSprite(gc, plantSprite, 798, 430, 58);
+        drawSpriteShadow(gc, 1760, 364, 32, 12, 0.18);
         drawCenteredSprite(gc, plantSprite, 1760, 344, 56);
+        drawSpriteShadow(gc, 1116, 832, 32, 12, 0.18);
         drawCenteredSprite(gc, plantSprite, 1116, 812, 56);
     }
 
@@ -2758,6 +2785,20 @@ public class GameScreen extends StackPane {
                 gc.drawImage(tile, drawX, drawY, actualWidth, actualHeight);
             }
         }
+    }
+
+    private void drawSpriteShadow(
+            GraphicsContext gc,
+            double centerX,
+            double centerY,
+            double width,
+            double height,
+            double alpha
+    ) {
+        gc.setFill(Color.rgb(8, 10, 18, alpha));
+        gc.fillOval(centerX - width / 2.0, centerY - height / 2.0, width, height);
+        gc.setFill(Color.rgb(255, 255, 255, alpha * 0.12));
+        gc.fillOval(centerX - width * 0.34, centerY - height * 0.22, width * 0.4, height * 0.25);
     }
 
     private void drawCenteredSprite(GraphicsContext gc, Image sprite, double centerX, double centerY, double maxSize) {
