@@ -1754,6 +1754,7 @@ public class GameScreen extends StackPane {
             gc.strokeRoundRect(wall.x(), wall.y(), wall.width(), wall.height(), 12, 12);
         }
 
+        drawArchitecturalAccents(gc);
         drawOfficeDecor(gc);
         drawFurniture(gc);
         drawInteractionAftermath(gc);
@@ -1832,6 +1833,52 @@ public class GameScreen extends StackPane {
         gc.fillRoundRect(0, 0, 92, 430, 16, 16);
         gc.fillRoundRect(170, -12, 78, 446, 16, 16);
         gc.restore();
+    }
+
+    private void drawArchitecturalAccents(GraphicsContext gc) {
+        gc.setFill(Color.rgb(255, 255, 255, 0.08));
+        gc.fillRoundRect(112, 92, 696, 18, 12, 12);
+        gc.fillRoundRect(932, 92, 396, 18, 12, 12);
+        gc.fillRoundRect(1432, 92, 356, 18, 12, 12);
+        gc.fillRoundRect(1092, 512, 696, 18, 12, 12);
+
+        gc.setFill(Color.rgb(15, 23, 42, 0.08));
+        gc.fillRoundRect(206, 454, 520, 16, 12, 12);
+        gc.fillRoundRect(980, 360, 274, 14, 12, 12);
+        gc.fillRoundRect(1506, 252, 192, 12, 10, 10);
+        gc.fillRoundRect(1224, 804, 512, 18, 14, 14);
+
+        gc.setFill(Color.rgb(96, 165, 250, 0.08));
+        gc.fillRoundRect(214, 144, 462, 54, 18, 18);
+        gc.fillRoundRect(214, 286, 462, 54, 18, 18);
+        gc.setStroke(Color.rgb(191, 219, 254, 0.20));
+        gc.setLineWidth(2);
+        gc.strokeRoundRect(224, 152, 440, 38, 16, 16);
+        gc.strokeRoundRect(224, 294, 440, 38, 16, 16);
+
+        gc.setFill(Color.rgb(124, 58, 237, 0.10));
+        gc.fillRoundRect(970, 188, 300, 96, 28, 28);
+        gc.setStroke(Color.rgb(221, 214, 254, 0.20));
+        gc.strokeRoundRect(984, 202, 272, 68, 24, 24);
+
+        gc.setFill(Color.rgb(245, 158, 11, 0.08));
+        gc.fillRoundRect(1494, 126, 234, 112, 22, 22);
+        gc.setFill(Color.rgb(255, 255, 255, 0.10));
+        gc.fillRoundRect(1512, 144, 198, 10, 8, 8);
+        gc.fillRoundRect(1512, 174, 162, 8, 8, 8);
+
+        gc.setFill(Color.rgb(16, 185, 129, 0.08));
+        gc.fillRoundRect(1184, 564, 548, 222, 26, 26);
+        gc.setStroke(Color.rgb(167, 243, 208, 0.12));
+        gc.setLineWidth(2);
+        for (double y = 588; y < 770; y += 34) {
+            gc.strokeLine(1208, y, 1708, y);
+        }
+
+        gc.setFill(Color.rgb(255, 255, 255, 0.06));
+        gc.fillRoundRect(308, 512, 198, 16, 10, 10);
+        gc.fillRoundRect(894, 512, 212, 16, 10, 10);
+        gc.fillRoundRect(1498, 512, 204, 16, 10, 10);
     }
 
     private void drawInteractions(GraphicsContext gc) {
