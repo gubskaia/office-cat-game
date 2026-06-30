@@ -1710,20 +1710,20 @@ public class GameScreen extends StackPane {
     }
 
     private void drawOffice(GraphicsContext gc) {
-        gc.setFill(Color.web("#f3ecdf"));
+        gc.setFill(Color.web("#efe7d8"));
         gc.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-        gc.setFill(Color.rgb(221, 214, 196, 0.42));
-        gc.fillRect(0, 900, WORLD_WIDTH, 220);
-        gc.setFill(Color.rgb(8, 10, 18, 0.05));
-        for (double x = 0; x < WORLD_WIDTH; x += 140) {
-            gc.fillRect(x, 0, 2, WORLD_HEIGHT);
+        gc.setFill(Color.rgb(255, 255, 255, 0.16));
+        gc.fillRect(0, 0, WORLD_WIDTH, 120);
+        gc.setFill(Color.rgb(160, 140, 110, 0.10));
+        for (double y = 0; y < WORLD_HEIGHT; y += 96) {
+            gc.fillRect(0, y, WORLD_WIDTH, 2);
         }
         drawCorridors(gc);
 
-        drawGridFloor(gc, OPEN_SPACE_ROOM, Color.web("#8f949f"), Color.web("#d7dae0"), 40);
-        drawMeetingFloor(gc, MEETING_ROOM);
-        drawKitchenFloor(gc, KITCHEN_ROOM);
-        drawWoodFloor(gc, DIRECTOR_ROOM, Color.web("#8c5a2e"), Color.web("#c58c4c"));
+        drawRoomFloor(gc, OPEN_SPACE_ROOM, openSpaceFloorTile, () -> drawGridFloor(gc, OPEN_SPACE_ROOM, Color.web("#8f949f"), Color.web("#d7dae0"), 40));
+        drawRoomFloor(gc, MEETING_ROOM, meetingFloorTile, () -> drawMeetingFloor(gc, MEETING_ROOM));
+        drawRoomFloor(gc, KITCHEN_ROOM, kitchenFloorTile, () -> drawKitchenFloor(gc, KITCHEN_ROOM));
+        drawRoomFloor(gc, DIRECTOR_ROOM, directorFloorTile, () -> drawWoodFloor(gc, DIRECTOR_ROOM, Color.web("#8c5a2e"), Color.web("#c58c4c")));
         drawAmbientRoomLighting(gc);
         drawRoomDepth(gc, OPEN_SPACE_ROOM);
         drawRoomDepth(gc, MEETING_ROOM);
@@ -1756,6 +1756,16 @@ public class GameScreen extends StackPane {
 
         drawFurniture(gc);
         drawInteractionAftermath(gc);
+    }
+
+    private void drawRoomFloor(GraphicsContext gc, Rect room, Image tile, Runnable fallback) {
+        if (tile != null && tile.getWidth() > 1 && tile.getHeight() > 1) {
+            fillAreaWithTile(gc, tile, room.x(), room.y(), room.width(), room.height(), 56);
+            gc.setFill(Color.rgb(255, 255, 255, 0.05));
+            gc.fillRect(room.x(), room.y(), room.width(), room.height());
+            return;
+        }
+        fallback.run();
     }
 
     private void drawInteractionAftermath(GraphicsContext gc) {
@@ -1987,81 +1997,82 @@ public class GameScreen extends StackPane {
         double urgencyPulse = 0.76 + 0.24 * (Math.sin(animationClock * 5.0) + 1) / 2.0;
         double securityLevel = securityAlertLevel();
 
-        drawPanel(gc, 20, 596, 330, 108, Color.web("#f97316"));
-        drawPanel(gc, 364, 596, 248, 108, Color.web("#22c55e"));
-        drawPanel(gc, 626, 596, 334, 108, Color.web("#60a5fa"));
-        drawPanel(gc, 974, 596, 266, 108, Color.web("#a78bfa"));
+        drawPanel(gc, 18, 590, 308, 116, Color.web("#f97316"));
+        drawPanel(gc, 338, 590, 278, 116, Color.web("#22c55e"));
+        drawPanel(gc, 628, 590, 334, 116, Color.web("#60a5fa"));
+        drawPanel(gc, 974, 590, 288, 116, Color.web("#a78bfa"));
 
         gc.setFill(Color.web("#fff7ed"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 17));
-        gc.fillText("Office Cat", 36, 622);
+        gc.fillText("Office Cat", 34, 618);
 
-        gc.setFont(Font.font("Verdana", 13));
-        gc.fillText(String.format("Time %02d:%02d", (int) timeLeft / 60, (int) timeLeft % 60), 36, 646);
-        gc.fillText(String.format("Productivity %.0f%%", officeProductivity * 100), 194, 646);
-        gc.fillText(player.isHidden() ? "Status Hidden in a box" : "Status Causing trouble", 36, 666);
+        gc.setFont(Font.font("Verdana", 12));
+        gc.fillText(String.format("Time %02d:%02d", (int) timeLeft / 60, (int) timeLeft % 60), 34, 640);
+        gc.fillText(String.format("Productivity %.0f%%", officeProductivity * 100), 176, 640);
+        gc.fillText(player.isHidden() ? "Status Hidden in a box" : "Status Causing trouble", 34, 660);
         gc.fillText(comboCount > 1 && comboTimer > 0
                 ? String.format("Combo x%d %.1fs", comboCount, comboTimer)
-                : "Chain actions for combo", 36, 686);
+                : "Chain actions for combo", 34, 680);
         gc.fillText(player.isDashReady()
                 ? "Dash Ready [Shift]"
-                : String.format("Dash %.1fs", player.dashCooldownRemaining()), 194, 686);
+                : String.format("Dash %.1fs", player.dashCooldownRemaining()), 176, 680);
         gc.fillText(insideDangerZone
                 ? "Danger Zone Active"
                 : (meowCooldownRemaining <= 0
                 ? "Meow Ready [Space]"
-                : String.format("Meow %.1fs", meowCooldownRemaining)), 36, 700);
+                : String.format("Meow %.1fs", meowCooldownRemaining)), 34, 700);
         gc.fillText(player.isZoomiesActive()
                 ? String.format("Zoomies %.1fs", player.zoomiesTimeRemaining())
-                : "Find support spots for bonuses", 194, 700);
+                : "Find support spots for bonuses", 176, 700);
 
         Color chaosColor = chaosPercent >= 80
                 ? Color.web("#fb7185").deriveColor(0, 1, urgencyPulse, 1)
                 : Color.web("#ef4444");
-        drawLabeledBar(gc, 380, 618, 216, 18, officeProductivity, officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD
+        drawLabeledBar(gc, 354, 618, 246, 16, officeProductivity, officeProductivity > PRODUCTIVITY_CASCADE_THRESHOLD
                 ? Color.web("#22c55e")
                 : Color.web("#f59e0b"), "Office Flow");
-        drawLabeledBar(gc, 380, 648, 216, 18, chaosPercent / 100.0, chaosColor, "Chaos " + String.format("%.0f%%", chaosPercent));
-
-        gc.setFill(Color.web("#ede9fe"));
-        gc.setFont(Font.font("Verdana", 12));
-        gc.fillText("Manager Watch", 990, 622);
-        gc.fillText(manager.statusText(), 990, 644);
-        gc.fillText(String.format("Pressure %.0f%%", currentChaosPressure() * 50), 990, 662);
-        gc.fillText(String.format("Suspicion %.0f%%", manager.awarenessLevel() * 100), 990, 678);
-        drawLabeledBar(gc, 990, 684, 228, 16, securityLevel,
+        drawLabeledBar(gc, 354, 646, 246, 16, chaosPercent / 100.0, chaosColor, "Chaos " + String.format("%.0f%%", chaosPercent));
+        drawLabeledBar(gc, 354, 674, 246, 16, securityLevel,
                 securityLevel >= 0.72 ? Color.web("#ef4444") : Color.web("#f59e0b"),
                 securityLevel >= 0.72 ? "Security Alert" : "Security Watch");
-        gc.fillText("WASD / E / Shift / Space", 990, 704);
+
+        gc.setFill(Color.web("#dcfce7"));
+        gc.setFont(Font.font("Verdana", 12));
+        gc.fillText("Manager Watch", 354, 700);
+        gc.fillText(manager.statusText(), 466, 700);
+        gc.fillText(String.format("Suspicion %.0f%%", manager.awarenessLevel() * 100), 354, 718);
+        gc.fillText(String.format("Pressure %.0f%%", currentChaosPressure() * 50), 496, 718);
 
         gc.setFill(Color.web("#dbeafe"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.fillText("Current Objective", 642, 622);
+        gc.fillText("Current Objective", 644, 618);
         gc.setFill(Color.web("#93c5fd").deriveColor(0, 1, 0.85 + 0.15 * urgencyPulse, 1));
-        gc.fillOval(922, 610, 12, 12);
+        gc.fillOval(928, 606, 12, 12);
         gc.setFont(Font.font("Verdana", 12));
         if (currentObjective != null) {
             gc.setFill(Color.web("#dbeafe"));
-            gc.fillText(currentObjective.title(), 642, 646);
-            gc.fillText(currentObjective.description(), 642, 670);
+            gc.fillText(currentObjective.title(), 644, 642);
+            gc.fillText(currentObjective.description(), 644, 666);
             gc.setFill(Color.web("#93c5fd"));
-            gc.fillText(String.format("Reward +%.0f chaos", currentObjective.bonusChaos()), 642, 694);
+            gc.fillText(String.format("Reward +%.0f chaos", currentObjective.bonusChaos()), 644, 690);
+            gc.setFill(Color.web("#bfdbfe"));
+            gc.fillText("Controls: WASD move  E interact  Shift dash  Space meow", 644, 714);
         }
     }
 
     private void drawIncidentFeed(GraphicsContext gc) {
         gc.setFill(Color.web("#ede9fe"));
         gc.setFont(Font.font("Verdana", FontWeight.BOLD, 13));
-        gc.fillText("Recent Incidents", 990, 622);
-        gc.setFont(Font.font("Verdana", 11));
+        gc.fillText("Recent Incidents", 990, 618);
+        gc.setFont(Font.font("Verdana", 10.5));
 
         int line = 0;
         for (IncidentFeedEntry entry : incidentFeed) {
-            if (line >= 3) {
+            if (line >= 4) {
                 break;
             }
             gc.setFill(Color.web("#f5f3ff").deriveColor(0, 1, 1, entry.alpha()));
-            gc.fillText("- " + entry.text(), 990, 640 + line * 18);
+            gc.fillText("- " + entry.text(), 990, 640 + line * 15);
             line++;
         }
     }
@@ -2269,13 +2280,21 @@ public class GameScreen extends StackPane {
     }
 
     private void drawCorridors(GraphicsContext gc) {
-        gc.setFill(Color.web("#e3dccf"));
+        gc.setFill(Color.web("#ddd4c6"));
         gc.fillRoundRect(120, 486, 1740, 126, 18, 18);
+        gc.setFill(Color.rgb(255, 255, 255, 0.16));
+        gc.fillRoundRect(132, 496, 1716, 20, 14, 14);
         gc.fillRoundRect(1112, 392, 112, 144, 18, 18);
-        gc.setStroke(Color.rgb(148, 163, 184, 0.35));
+        gc.setFill(Color.rgb(17, 24, 39, 0.06));
+        gc.fillRoundRect(120, 590, 1740, 14, 18, 18);
+        gc.setStroke(Color.rgb(148, 163, 184, 0.24));
         gc.setLineWidth(2);
         for (double x = 146; x < 1830; x += 54) {
             gc.strokeLine(x, 548, x + 26, 548);
+        }
+        gc.setStroke(Color.rgb(120, 98, 72, 0.12));
+        for (double y = 504; y < 604; y += 18) {
+            gc.strokeLine(138, y, 1842, y);
         }
         gc.setStroke(Color.rgb(255, 255, 255, 0.2));
         gc.strokeRoundRect(120, 486, 1740, 126, 18, 18);
@@ -2428,8 +2447,12 @@ public class GameScreen extends StackPane {
         gc.fillRoundRect(x + 4, y + 6, width, height, 20, 20);
         gc.setFill(Color.rgb(17, 24, 39, 0.93));
         gc.fillRoundRect(x, y, width, height, 20, 20);
+        gc.setFill(Color.rgb(255, 255, 255, 0.035));
+        gc.fillRoundRect(x + 10, y + 14, width - 20, height * 0.34, 16, 16);
         gc.setFill(accent.deriveColor(0, 1, 1, 0.92));
         gc.fillRoundRect(x, y, width, 8, 20, 20);
+        gc.setFill(accent.deriveColor(0, 0.7, 1, 0.1));
+        gc.fillRoundRect(x + 8, y + 10, width - 16, 12, 12, 12);
         gc.setStroke(Color.rgb(255, 255, 255, 0.08));
         gc.setLineWidth(1.5);
         gc.strokeRoundRect(x + 0.75, y + 0.75, width - 1.5, height - 1.5, 20, 20);
